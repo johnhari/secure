@@ -17,6 +17,17 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
+
+      - name: Prepare Build Directories
+        run: |
+          mkdir -p orderflow/build/ios/SourcePackages
+          mkdir -p orderflow/build/ios/ipa
+
+      - name: Precache iOS Artifacts
+        run: |
+          cd orderflow
+          flutter precache --ios
 
       - name: Install Dependencies
         run: |
@@ -26,13 +37,12 @@ jobs:
       - name: Install CocoaPods
         run: |
           cd orderflow/ios
-          pod install
+          pod install --repo-update || pod install
 
       - name: Build iOS (Unsigned Release / Archive)
         run: |
           cd orderflow
           flutter build ios --release --no-codesign
-          mkdir -p build/ios/ipa
           cd build/ios/iphoneos
           mkdir -p Payload
           cp -r Runner.app Payload/

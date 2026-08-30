@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-macos:
-    runs-on: macos-13
+    runs-on: macos-14
 
     steps:
       - name: Checkout Code
@@ -17,6 +17,17 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+          cache: true
+
+      - name: Prepare Build Directories
+        run: |
+          mkdir -p orderflow/build/macos/SourcePackages
+          mkdir -p orderflow/build/macos/dmg
+
+      - name: Precache macOS Artifacts
+        run: |
+          cd orderflow
+          flutter precache --macos
 
       - name: Install Dependencies
         run: |
@@ -30,23 +41,9 @@ jobs:
 
       - name: Create DMG Disk Image Installer
         run: |
-          brew install create-dmg
           cd orderflow
           mkdir -p build/macos/dmg
-          create-dmg \
-            --volname "ADVANCE ORDERFLOW ANALYZER" \
-            --window-pos 200 120 \
-            --window-size 800 400 \
-            --icon-size 100 \
-            --icon "Orderflow.app" 200 190 \
-            --hide-extension "Orderflow.app" \
-            --app-drop-link 600 190 \
-            "build/macos/dmg/Orderflow-Installer.dmg" \
-            "build/macos/Build/Products/Release/Orderflow.app" || true
-
-          if [ ! -f "build/macos/dmg/Orderflow-Installer.dmg" ]; then
-            hdiutil create -volname "Orderflow" -srcfolder "build/macos/Build/Products/Release/Orderflow.app" -ov -format UDZO "build/macos/dmg/Orderflow-Installer.dmg"
-          fi
+          hdiutil create -volname "ADVANCE ORDERFLOW ANALYZER" -srcfolder "build/macos/Build/Products/Release/orderflow.app" -ov -format UDZO "build/macos/dmg/Orderflow-Installer.dmg"
 
       - name: Upload DMG Installer Artifact
         uses: actions/upload-artifact@v4
