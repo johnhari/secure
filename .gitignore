@@ -1,0 +1,35 @@
+# Compiled binaries & archives
+*.apk
+*.aab
+*.ipa
+*.dmg
+*.zip
+*.tar.gz
+*.7z
+
+# JDK and Local Tools
+jdk-17/
+.gradle/
+.idea/
+*.iml
+local.properties
+/local.properties
+
+# Flutter / Dart Build Outputs
+/build/
+/builds/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+
+# Crash logs & system dumps
+hs_err_pid*.log
+*.log
+*.dump
+window_dump.xml
+captures/
+.externalNativeBuild/
+.cxx/
+.DS_Store
+Thumbs.db

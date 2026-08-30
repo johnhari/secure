@@ -1,0 +1,113 @@
+  /// Ensures that during market hours (or for the current trading day), there are nodes for all intervals.
+  /// This allows admins to always have nodes to select for injection even if Yahoo is throttled.
+  List<CandleModel> _ensureLiveNode(String symbol, List<CandleModel> currentCandles) {
+    final now = DateTime.now();
+    final istNow = now.toUtc().add(const Duration(hours: 5, minutes: 30));
+    
+    final marketStartTodayIST = DateTime(istNow.year, istNow.month, istNow.day, 9, 15);
+    final marketEndTodayIST = DateTime(istNow.year, istNow.month, istNow.day, 15, 30);
+    
+    final marketStartTodayLocal = marketStartTodayIST.subtract(const Duration(hours: 5, minutes: 30)).toLocal();
+    final marketEndTodayLocal = marketEndTodayIST.subtract(const Duration(hours: 5, minutes: 30)).toLocal();
+    
+    // --- AGGRESSIVE MULTI-DAY BOOTSTRAP ---
+    // If empty, generate last 3 trading days to ensure a rich chart
+    if (currentCandles.isEmpty) {
+      List<CandleModel> bootstrapNodes = [];
+      double lastClose = (symbol.contains('BANK')) ? 52500.0 : 24200.0;
+      
+      for (int d = 3; d >= 0; d--) {
+        final targetDate = istNow.subtract(Duration(days: d));
+        final bool isTargetTradingDay = targetDate.weekday <= 5;
+        if (!isTargetTradingDay) continue; 
+
+        final targetMarketStart = DateTime(targetDate.year, targetDate.month, targetDate.day, 9, 15);
+        final targetMarketEnd = DateTime(targetDate.year, targetDate.month, targetDate.day, 15, 30);
+        
+        final sessionStart = targetMarketStart.subtract(const Duration(hours: 5, minutes: 30)).toLocal();
+        final sessionEnd = targetMarketEnd.subtract(const Duration(hours: 5, minutes: 30)).toLocal();
+
+        DateTime generationLimit = sessionEnd;
+        if (d == 0) {
+          if (now.isBefore(sessionStart)) continue;
+          generationLimit = now.isBefore(sessionEnd) ? now : sessionEnd;
+        }
+
+        DateTime iterator = sessionStart;
+        while (iterator.isBefore(generationLimit) || iterator.isAtSameMomentAs(generationLimit)) {
+          final random = math.Random(iterator.millisecondsSinceEpoch);
+          final change = (random.nextDouble() - 0.5) * 15;
+          final open = lastClose;
+          final close = open + change;
+          final high = math.max(open, close) + random.nextDouble() * 5;
+          final low = math.min(open, close) - random.nextDouble() * 5;
+
+          bootstrapNodes.add(CandleModel(
+            symbol: symbol,
+            open: open,
+            high: high,
+            low: low,
+            close: close,
+            volume: 1000 + random.nextInt(5000),
+            timeStart: iterator,
+            isLive: false,
+            delta: (random.nextDouble() - 0.4) * 500,
+            candleKey: iterator.millisecondsSinceEpoch.toString(),
+          ));
+          
+          lastClose = close;
+          iterator = iterator.add(const Duration(minutes: 5));
+        }
+      }
+      
+      if (bootstrapNodes.isNotEmpty) {
+        print('CandleRepository [$symbol]: CRITICAL BOOTSTRAP - Generated ${bootstrapNodes.length} historical nodes.');
+        return bootstrapNodes;
+      }
+    }
+
+    // Standard today-sync if we have data
+    final bool isTradingDay = istNow.weekday <= 5;
+    if (!isTradingDay) return currentCandles;
+    if (now.isBefore(marketStartTodayLocal)) return currentCandles;
+    
+    DateTime generationEnd = now.isBefore(marketEndTodayLocal) ? now : marketEndTodayLocal;
+    DateTime iterator = marketStartTodayLocal;
+    
+    if (currentCandles.isNotEmpty) {
+      final lastTime = currentCandles.last.timeStart;
+      if (lastTime.isAfter(marketStartTodayLocal)) {
+        iterator = lastTime.add(const Duration(minutes: 5));
+      }
+    }
+
+    List<CandleModel> syncNodes = List.from(currentCandles);
+    double lastPrice = syncNodes.isNotEmpty ? syncNodes.last.close : (symbol.contains('BANK') ? 52500.0 : 24200.0);
+
+    while (iterator.isBefore(generationEnd) || iterator.isAtSameMomentAs(generationEnd)) {
+      final random = math.Random(iterator.millisecondsSinceEpoch);
+      final change = (random.nextDouble() - 0.5) * 10;
+      final open = lastPrice;
+      final close = open + change;
+      final high = math.max(open, close) + random.nextDouble() * 5;
+      final low = math.min(open, close) - random.nextDouble() * 5;
+
+      syncNodes.add(CandleModel(
+        symbol: symbol,
+        open: open,
+        high: high,
+        low: low,
+        close: close,
+        volume: 1000 + random.nextInt(5000),
+        timeStart: iterator,
+        isLive: false,
+        delta: (random.nextDouble() - 0.4) * 500,
+        candleKey: iterator.millisecondsSinceEpoch.toString(),
+      ));
+      
+      lastPrice = close;
+      iterator = iterator.add(const Duration(minutes: 5));
+    }
+
+    return syncNodes;
+  }

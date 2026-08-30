@@ -1,0 +1,49 @@
+{
+    "project_info": {
+        "project_number": "863653253432",
+        "firebase_url": "https://mst7-3fb55-default-rtdb.firebaseio.com",
+        "project_id": "mst7-3fb55",
+        "storage_bucket": "mst7-3fb55.firebasestorage.app"
+    },
+    "client": [
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:863653253432:android:cbe6ccc64419bf9cdef1cd",
+                "android_client_info": {
+                    "package_name": "com.example.next"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyB1_n0v8ug6tRgAOJCGtZL81QaURyaM7GE"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        },
+        {
+            "client_info": {
+                "mobilesdk_app_id": "1:863653253432:android:99913e8bb89e8cb9def1cd",
+                "android_client_info": {
+                    "package_name": "com.orderflowng"
+                }
+            },
+            "oauth_client": [],
+            "api_key": [
+                {
+                    "current_key": "AIzaSyB1_n0v8ug6tRgAOJCGtZL81QaURyaM7GE"
+                }
+            ],
+            "services": {
+                "appinvite_service": {
+                    "other_platform_oauth_client": []
+                }
+            }
+        }
+    ],
+    "configuration_version": "1"
+}

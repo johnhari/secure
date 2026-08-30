@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="$FLUTTER_BASE_HREF">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="BIG SHOT Orderflow - Advanced Market Intelligence and Trading Terminal.">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="BIG SHOT Terminal">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>BIG SHOT - Access Terminal</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    body {
+      background-color: #131722;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .loader-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s ease-out;
+    }
+    .logo-container {
+      position: relative;
+      width: 100px;
+      height: 100px;
+      margin-bottom: 24px;
+    }
+    .logo-img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 2px solid rgba(0, 255, 204, 0.3);
+      object-fit: cover;
+      z-index: 2;
+      position: relative;
+    }
+    .pulse-ring {
+      position: absolute;
+      top: -10px;
+      left: -10px;
+      right: -10px;
+      bottom: -10px;
+      border: 2px solid #00ffcc;
+      border-radius: 50%;
+      opacity: 0;
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.9); opacity: 0; }
+      50% { opacity: 0.5; }
+      100% { transform: scale(1.3); opacity: 0; }
+    }
+    .loading-text {
+      color: #00ffcc;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 5px;
+      text-transform: uppercase;
+      margin-top: 10px;
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+  </style>
+  <script src="flutter.js" defer></script>
+</head>
+<body>
+  <div id="loading-indicator" class="loader-container">
+    <div class="logo-container">
+      <img src="assets/images/logo_bigshot.jpg" 
+           id="main-logo"
+           class="logo-img" 
+           alt="BIG SHOT" 
+           onerror="if(!this.tried){this.tried=1;this.src='assets/assets/images/logo_bigshot.jpg';}else{this.src='favicon.png';}">
+      <div class="pulse-ring"></div>
+    </div>
+    <div class="loading-text" id="status-text">Terminal Initializing</div>
+    <div id="diagnostic-log" style="color: rgba(255,255,255,0.3); font-size: 10px; margin-top: 20px; font-family: monospace;"></div>
+  </div>
+
+  <script>
+    function logDiag(msg) {
+      console.log(msg);
+      const diag = document.getElementById('diagnostic-log');
+      if (diag) diag.innerText = msg;
+    }
+
+    window.addEventListener('load', function(ev) {
+      logDiag('🚀 Starting BIG SHOT...');
+      
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const renderer = isMobile ? 'canvaskit' : 'html';
+      
+      logDiag('📱 Platform: ' + (isMobile ? 'Mobile' : 'Desktop') + ' | Renderer: ' + renderer);
+
+      _flutter.loader.load({
+        onEntrypointLoaded: function(engineInitializer) {
+          logDiag('📦 Engine Loaded. Initializing...');
+          
+          engineInitializer.initializeEngine({
+            useColorEmoji: true,
+            renderer: renderer,
+          }).then(function(appRunner) {
+            logDiag('✨ Engine Ready. Running App...');
+            appRunner.runApp();
+          }).catch(function(e) {
+            console.error('❌ Flutter Engine Init Failed:', e);
+            logDiag('❌ Init Failed. Retrying with HTML Renderer...');
+            
+            engineInitializer.initializeEngine({
+              renderer: "html",
+            }).then(function(appRunner) {
+              appRunner.runApp();
+            }).catch(function(err) {
+              const statusText = document.getElementById('status-text');
+              if (statusText) statusText.innerText = 'Critical Error - Please Refresh';
+              logDiag('💀 Critical Failure: ' + err);
+            });
+          });
+        }
+      });
+    });
+  </script>
+
+  <script>
+    window.tvCharts = {};
+
+    window.initTvChart = function(containerIdOrElement) {
+      logDiag('🔍 [TV] Initializing chart for: ' + containerIdOrElement);
+
+      if (typeof LightweightCharts === 'undefined') {
+        logDiag('⚠️ [TV] Library Missing. Injecting script...');
+        const script = document.createElement('script');
+        script.src = "https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js";
+        script.onload = () => logDiag('✅ [TV] Library Loaded from unpkg');
+        script.onerror = () => logDiag('❌ [TV] Script Injection Failed');
+        document.head.appendChild(script);
+        return false;
+      }
+
+      function findDeep(root, id) {
+        if (!root) return null;
+        
+        // 1. Check direct
+        if (root.getElementById) {
+            const el = root.getElementById(id);
+            if (el) return el;
+        }
+
+        // 2. Check children for shadow roots
+        const children = (root.childNodes || root.children || []);
+        for (let i = 0; i < children.length; i++) {
+          const child = children[i];
+          if (child.id === id) return child;
+          
+          if (child.shadowRoot) {
+            const found = findDeep(child.shadowRoot, id);
+            if (found) return found;
+          }
+          
+          const found = findDeep(child, id);
+          if (found) return found;
+        }
+        return null;
+      }
+
+      let container;
+      if (typeof containerIdOrElement === 'string') {
+        if (window.tvCharts[containerIdOrElement]) {
+          logDiag('ℹ️ [TV] Chart already active for ' + containerIdOrElement);
+          return containerIdOrElement;
+        }
+        
+        // Start search from document
+        container = findDeep(document, containerIdOrElement);
+        
+        // If not found, look specifically in flt-glass-pane
+        if (!container) {
+            const glassPane = document.querySelector('flt-glass-pane');
+            if (glassPane && glassPane.shadowRoot) {
+                container = findDeep(glassPane.shadowRoot, containerIdOrElement);
+            }
+        }
+      } else {
+        container = containerIdOrElement;
+      }
+
+      if (!container) {
+        logDiag('⏳ [TV] Container NOT FOUND yet: ' + containerIdOrElement);
+        return false;
+      }
+
+      try {
+        logDiag('🚀 [TV] Creating Chart...');
+        const chart = LightweightCharts.createChart(container, {
+          width: container.clientWidth || 300,
+          height: container.clientHeight || 300,
+          layout: {
+            background: { type: 'solid', color: '#131722' },
+            textColor: '#d1d4dc',
+            fontSize: 12,
+          },
+          grid: {
+            vertLines: { color: 'rgba(42, 46, 57, 0.05)' },
+            horzLines: { color: 'rgba(42, 46, 57, 0.05)' },
+          },
+          rightPriceScale: { borderColor: 'rgba(197, 203, 206, 0.1)' },
+          timeScale: { borderColor: 'rgba(197, 203, 206, 0.1)', timeVisible: true },
+          crosshair: { mode: 0 },
+        });
+
+        const candleSeries = chart.addCandlestickSeries({
+          upColor: '#00ffcc',
+          downColor: '#ff3b30',
+          borderVisible: false,
+          wickUpColor: '#00ffcc',
+          wickDownColor: '#ff3b30',
+        });
+
+        const containerId = container.id || ('tv-chart-' + Math.random().toString(36).substr(2, 9));
+        window.tvCharts[containerId] = { chart: chart, series: candleSeries };
+
+        const resizeObserver = new ResizeObserver(entries => {
+          if (entries.length === 0 || !entries[0].contentRect) return;
+          const { width, height } = entries[0].contentRect;
+          if (width > 5 && height > 5) {
+            chart.applyOptions({ width, height });
+          }
+        });
+        resizeObserver.observe(container);
+
+        const loader = document.getElementById('loading-indicator');
+        if (loader) {
+          loader.style.opacity = '0';
+          setTimeout(() => { if (loader && loader.parentElement) loader.remove(); }, 500);
+        }
+
+        logDiag('✅ [TV] Chart Creation Success!');
+        return containerId;
+      } catch (e) {
+        logDiag('❌ [TV] Error: ' + e);
+        return false;
+      }
+    };
+
+    window.updateTvData = function(containerId, data) {
+      const tv = window.tvCharts[containerId];
+      if (tv && tv.series) {
+        try {
+          tv.series.setData(data);
+        } catch (e) {
+          console.error('Data Update Error:', e);
+        }
+      }
+    };
+  </script>
+  </script>
+</body>
+</html>

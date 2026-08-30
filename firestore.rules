@@ -1,0 +1,47 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if the user is a Master Admin
+    function isMasterAdmin() {
+      return request.auth != null && 
+        (request.auth.token.email in ['jivaspcet@gmail.com', 'jivaspect@gmail.com', 'whatsapplivestatus@gmail.com']);
+    }
+
+    // Helper function to check if user has admin role or is a master admin
+    function isAdminRole() {
+      return request.auth != null && 
+        (isMasterAdmin() || (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    // User profiles
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if request.auth != null && (request.auth.uid == userId || isAdminRole());
+    }
+    
+    // Orderflow data
+    match /orderflow/{candleKey} {
+      allow read: if true;
+      allow write: if isAdminRole();
+    }
+
+    // Ghost Orders
+    match /ghost_orders/{ghostId} {
+      allow read: if true;
+      allow write: if isAdminRole();
+    }
+
+    // Global Configuration
+    match /global_config/{docId} {
+      allow read: if true;
+      allow write: if isAdminRole();
+    }
+
+    // Stats / Counters
+    match /stats/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

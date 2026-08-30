@@ -1,0 +1,2434 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIG SHOT Orderflow - Pro Market Intelligence</title>
+    <meta name="description" content="Institutional-Grade Market Intelligence. BIG SHOT Orderflow Web Terminal optimized for Desktop & Mobile. Track whales and spot retail traps.">
+    <meta name="keywords" content="Orderflow, Market Intelligence, Nifty, BankNifty, Trading, Stock Market, Whale Detection, Delta">
+    <meta property="og:title" content="BIG SHOT Orderflow - Pro Market Intelligence">
+    <meta property="og:description" content="Institutional-Grade Market Intelligence. Web Terminal optimized for Desktop & Mobile.">
+    <meta property="og:image" content="assets/logo_brand.png">
+    <meta property="og:url" content="https://bigshotorderflow.com">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="icon" type="image/png" href="assets/logo_brand.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css?v=1.20">
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="top-nav">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <img src="assets/logo_brand.png" alt="Logo" style="width: 30px; height: 30px; border-radius: 6px;">
+                <span style="font-weight: 800; letter-spacing: 1px;">BIG SHOT</span>
+            </div>
+            <div class="nav-links" style="align-items: center;">
+                <a href="#" class="nav-link">Home</a>
+                <a href="#reviews-section" class="nav-link">Reviews</a>
+                <a href="#features" class="nav-link">Features</a>
+                <a href="#proof" class="nav-link">Proof</a>
+                <a href="#download-section" class="nav-link" style="color: var(--bull-green); font-weight: 800;">Downloads</a>
+                <a href="https://youtube.com/shorts/4ilxsYcgNHY?si=z72GdgmC7KwTgKGy" target="_blank" class="nav-link" style="color: #ff4757; display: flex; align-items: center; gap: 5px; font-weight: 700;">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                    Watch Demo
+                </a>
+                <a href="https://wa.me/918122965050" target="_blank" class="nav-link" style="color: #25D366; display: flex; align-items: center; gap: 5px;">
+                    <svg viewBox="0 0 448 512" width="16" height="16"><path fill="currentColor" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3 18.7-68.1-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-5.5-2.8-23.2-8.5-44.2-27.2-16.4-14.6-27.4-32.7-30.6-38.1-3.2-5.5-.3-8.4 2.5-11.1 2.4-2.4 5.5-6.5 8.3-9.7 2.8-3.3 3.7-5.6 5.6-9.3 1.9-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z"/></svg>
+                    +91 81229 65050
+                </a>
+                <a href="#download-section" onclick="return handleDownloadClick(event, 'windows');" class="nav-download-btn" style="background: linear-gradient(135deg, #00ff9d, #00b359); color: #000; font-weight: 900; padding: 6px 16px; border-radius: 20px; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 0 15px rgba(0,255,157,0.4); margin-left: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    <span>Download App</span>
+                </a>
+            </div>    
+            <div class="lang-toggle-switch" onclick="toggleLang()" style="cursor:pointer; background:rgba(255,255,255,0.1); padding:5px; border-radius:20px; font-size:0.8rem; font-weight:bold; margin-left:15px; display:flex; align-items:center; position:relative; width:60px; height:26px; box-shadow:inset 0 0 5px rgba(0,0,0,0.5);">
+                <div id="lang-slider" style="position:absolute; top:3px; left:3px; width:26px; height:20px; background:var(--bull-green); border-radius:15px; transition:all 0.3s ease; z-index:1;"></div>
+                <span id="lang-en" style="color:#000; z-index:2; flex:1; text-align:center; transition:color 0.3s;">EN</span>
+                <span id="lang-ta" style="color:#fff; z-index:2; flex:1; text-align:center; transition:color 0.3s;">TA</span>
+            </div>
+            <script>
+                let isTa = false;
+                function toggleLang() {
+                    isTa = !isTa;
+                    document.getElementById('lang-slider').style.left = isTa ? '31px' : '3px';
+                    document.getElementById('lang-en').style.color = isTa ? '#fff' : '#000';
+                    document.getElementById('lang-ta').style.color = isTa ? '#000' : '#fff';
+                    
+                    const title = document.getElementById('main-title');
+                    if(title) title.innerText = isTa ? 'BIG SHOT ORDERFLOW' : 'BIG SHOT ORDERFLOW';
+                    
+                    const sub = document.getElementById('main-sub');
+                    if(sub) sub.innerText = isTa ? 'நிறுவன தர சந்தை நுண்ணறிவு. டெஸ்க்டாப் மற்றும் மொபைலுக்கு உகந்த வலை முனையம்.' : 'Institutional-Grade Market Intelligence. Web Terminal optimized for Desktop & Mobile.';
+                }
+            </script>
+
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sticky Urgency Bar (slides in on scroll) -->
+    <div class="sticky-urgency-bar" id="sticky-urgency">
+        <span>⚡</span>
+        <span>1 Year (Index + Stocks): <strong>₹19,999</strong></span>
+        <span>•</span>
+        <a href="#" onclick="return handleDownloadClick(event, 'windows');" style="color:var(--bull-green); font-weight:800; text-decoration:none;">⬇️ DOWNLOAD WINDOWS RELEASE (PAY ₹19,999) →</a>
+    </div>
+
+    <div class="updates-marquee" id="live-market-bar" style="position: fixed; left: 0; width: 100%; height: 35px; display: flex; align-items: center; z-index: 999; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.82rem; overflow: hidden; white-space: nowrap; background: rgba(5,10,15,0.92); backdrop-filter: blur(10px);">
+        <!-- Label chip -->
+        <div style="background: linear-gradient(135deg, var(--bull-green), #00b359); color: #000; font-weight: 800; padding: 0 16px; height: 100%; display: flex; align-items: center; gap: 6px; z-index: 10; box-shadow: 2px 0 10px rgba(0,255,128,0.3); flex-shrink: 0; letter-spacing: 1px; font-size: 0.75rem;">
+            <span style="width:6px;height:6px;background:#000;border-radius:50%;display:inline-block;animation:pulse-live 1.5s infinite;"></span>
+            LIVE MARKET
+        </div>
+        <!-- Ticker scroll area -->
+        <div style="flex: 1; overflow: hidden; position: relative;">
+            <div id="market-ticker-inner" style="display: inline-flex; gap: 0; padding-left: 60px; animation: ticker 40s linear infinite; align-items: center; height: 35px;">
+                <!-- Populated by JS -->
+                <span style="color: var(--text-secondary); font-size: 0.8rem; padding: 0 30px;">⏳ Loading live data…</span>
+            </div>
+        </div>
+        <!-- Refresh indicator -->
+        <div id="market-refresh-dot" style="width: 6px; height: 6px; background: var(--bull-green); border-radius: 50%; margin-right: 12px; flex-shrink: 0; opacity: 0.5; transition: opacity 0.3s;"></div>
+    </div>
+
+    <script>
+    /* ── LIVE MARKET TICKER ── */
+    (function() {
+        // Symbols: [Yahoo Finance symbol, display name]
+        const SYMBOLS = [
+            ['^NSEI',       'NIFTY 50'],
+            ['^NSEBANK',    'BANKNIFTY'],
+            ['^BSESN',      'SENSEX'],
+            ['RELIANCE.NS', 'RELIANCE'],
+            ['TCS.NS',      'TCS'],
+            ['TATAMOTORS.NS','TATA MOTORS'],
+            ['INFY.NS',     'INFOSYS'],
+            ['HDFCBANK.NS', 'HDFC BANK'],
+            ['SUNPHARMA.NS','SUN PHARMA'],
+        ];
+
+        const inner = document.getElementById('market-ticker-inner');
+        const dot   = document.getElementById('market-refresh-dot');
+
+        function fmt(n, dec) {
+            return n.toLocaleString('en-IN', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+        }
+
+        function buildTicker(data) {
+            if (!data || !data.length) return;
+            let html = '';
+            data.forEach((q, i) => {
+                const price  = q.regularMarketPrice;
+                const change = q.regularMarketChange;
+                const pct    = q.regularMarketChangePercent;
+                const name   = SYMBOLS[i] ? SYMBOLS[i][1] : q.symbol;
+                const isUp   = change >= 0;
+                const arrow  = isUp ? '▲' : '▼';
+                const clr    = isUp ? 'var(--bull-green)' : 'var(--bear-red)';
+                const dec    = price > 1000 ? 0 : 2;
+
+                html += `
+                <span style="display:inline-flex; align-items:center; gap:5px; padding: 0 28px; border-right: 1px solid rgba(255,255,255,0.07);">
+                    <span style="color:#aaa; font-weight:700; letter-spacing:0.5px; font-size:0.75rem;">${name}</span>
+                    <span style="color:#fff; font-weight:800;">${fmt(price, dec)}</span>
+                    <span style="color:${clr}; font-weight:700; font-size:0.78rem;">${arrow} ${fmt(Math.abs(change), dec)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)</span>
+                </span>`;
+            });
+            // Duplicate for seamless loop
+            inner.innerHTML = html + html;
+        }
+
+        function fetchMarket() {
+            const ySymbols = SYMBOLS.map(s => s[0]).join(',');
+            const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(ySymbols)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent`;
+            fetch(url, { headers: { 'Accept': 'application/json' } })
+                .then(r => r.json())
+                .then(json => {
+                    const quotes = json?.quoteResponse?.result;
+                    if (quotes && quotes.length) {
+                        buildTicker(quotes);
+                        // Flash refresh dot
+                        dot.style.opacity = '1';
+                        setTimeout(() => dot.style.opacity = '0.3', 800);
+                    }
+                })
+                .catch(() => {
+                    // Fallback to promo text if API blocked (CORS etc.)
+                    inner.innerHTML = `
+                    <span style="color:#fff; padding:0 40px;">🚨 BIG SHOT V2.0 Web Terminal is now Live!</span>
+                    <span style="color:var(--bull-green); padding:0 40px;">🔥 50% OFF Flash Sale — Limited Seats</span>
+                    <span style="color:var(--bear-red); padding:0 40px;">📉 Institutional Footprints detected on NIFTY 50</span>
+                    <span style="color:#fff; padding:0 40px;">🚀 TBT Level 3 Data Feed Active</span>
+                    <span style="color:var(--gold); padding:0 40px;">💯 1000+ Active Traders on Platform</span>
+                    `.repeat(2);
+                });
+        }
+
+        // Initial fetch + refresh every 30s
+        fetchMarket();
+        setInterval(fetchMarket, 30000);
+    })();
+    </script>
+
+    <div class="aurora-bg">
+        <div class="aurora-blob blob-1"></div>
+        <div class="aurora-blob blob-2"></div>
+        <div class="aurora-blob blob-3"></div>
+        <!-- Floating Data Particles -->
+        <div class="data-particle" style="left: 10%; bottom: 5%; animation: particle-float 15s infinite linear;"></div>
+        <div class="data-particle"
+            style="left: 30%; bottom: 10%; animation: particle-float 18s infinite linear; animation-delay: 2s;"></div>
+        <div class="data-particle"
+            style="left: 60%; bottom: 20%; animation: particle-float 20s infinite linear; animation-delay: 5s;"></div>
+        <div class="data-particle"
+            style="left: 80%; bottom: 15%; animation: particle-float 12s infinite linear; animation-delay: 1s;"></div>
+    </div>
+
+    <section class="hero">
+        <div class="container">
+            <img src="assets/logo_brand.png" alt="BIG SHOT Logo"
+                style="width: 80px; height: 80px; margin-bottom: 1rem; border-radius: 16px; box-shadow: 0 0 30px rgba(255, 204, 0, 0.2); animation: float-visual 6s ease-in-out infinite;">
+            <div class="badge" data-aos="fade-down">
+                <span class="live-dot"></span> 
+                Next-Gen Web Terminal (Active)
+            </div>
+            <!-- Live Users Social Proof Pill -->
+            <div class="live-users-pill" data-aos="fade-up" data-aos-delay="100">
+                <span class="live-dot" style="width:6px;height:6px;margin-right:0;"></span>
+                <span id="live-user-count">247</span>&nbsp;traders active right now
+            </div>
+            <h1 id="main-title" data-aos="zoom-in" data-aos-delay="200">BIG SHOT ORDERFLOW</h1>
+            <p id="main-sub" class="hero-subtitle" data-aos="fade-up" data-aos-delay="400">Institutional-Grade Market Intelligence. Web Terminal optimized for Desktop & Mobile.</p>
+
+            <!-- Software Box in Hero -->
+            <div data-aos="zoom-in" data-aos-delay="500" style="max-width: 360px; margin: 1rem auto; position: relative; perspective: 1000px;">
+                <div class="hero-box-3d">
+                    <img src="assets/software_box_mockup.png" alt="BIG SHOT Orderflow Terminal" style="width: 100%; height: auto; border-radius: 12px; filter: drop-shadow(0 15px 40px rgba(0,255,157,0.2)) drop-shadow(0 6px 20px rgba(0,0,0,0.6));">
+                </div>
+            </div>
+
+            <!-- Hero Price + PAY -->
+            <div data-aos="fade-up" data-aos-delay="600" style="margin-top: 0.2rem;">
+                <div style="display: inline-flex; align-items: center; gap: 12px; margin-bottom: 0.3rem;">
+                    <span style="text-decoration: line-through; font-size: 1.1rem; color: rgba(255,255,255,0.35); font-weight: 600;">₹49,999</span>
+                    <span style="font-size: 2.2rem; font-weight: 900; background: linear-gradient(180deg, #fff 0%, #00ff9d 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">₹19,999</span>
+                    <span style="background: var(--bear-red); color: #fff; padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800;">60% OFF</span>
+                </div>
+                <p style="color: #00ff9d; font-size: 0.85rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 0.8rem;">1 Year • Index + Stocks • Android & Desktop</p>
+            </div>
+
+            <div class="action-buttons" data-aos="fade-up" data-aos-delay="700" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 12px;">
+                <a href="#" onclick="return handleDownloadClick(event, 'windows');" class="cta-button hero-pay-btn" id="heroDownloadBtn" style="font-size: 1.05rem; padding: 14px 28px; letter-spacing: 0.5px; background: linear-gradient(135deg, #00ff9d, #00b359); color: #000; font-weight: 900; text-decoration: none; border-radius: 50px; box-shadow: 0 0 25px rgba(0, 255, 157, 0.4); display: inline-flex; align-items: center; gap: 8px;">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    💻 DOWNLOAD WINDOWS RELEASE (.EXE)
+                </a>
+                <a href="#" onclick="return handleDownloadClick(event, 'apk');" class="secondary-button" style="font-size: 1.05rem; padding: 14px 28px; background: rgba(45, 169, 79, 0.2); color: #00ff9d; border: 1px solid rgba(45, 169, 79, 0.5); border-radius: 50px; text-decoration: none; font-weight: 800; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 0 15px rgba(0,255,157,0.2);">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    📱 DOWNLOAD ANDROID APK (.APK)
+                </a>
+                <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="return openPayModal(event);" class="secondary-button pay-trigger" style="font-size: 1rem; padding: 14px 24px; background: rgba(255, 204, 0, 0.15); color: #ffcc00; border: 1px solid rgba(255, 204, 0, 0.4); border-radius: 50px; text-decoration: none; font-weight: 800; display: inline-flex; align-items: center; gap: 8px;">
+                    💳 PAY ₹19,999 — GET PRO
+                </a>
+            </div>
+
+            <!-- Quick UPI App Buttons in Hero -->
+            <div style="display: flex; justify-content: center; gap: 10px; margin-top: 0.8rem; flex-wrap: wrap;" data-aos="fade-up" data-aos-delay="750">
+                <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="return openPayModal(event);" class="upi-app-btn pay-trigger" style="--app-color: #2DA94F; padding: 6px 14px; font-size: 0.78rem;">
+                    <span class="upi-app-icon">💳</span>
+                    <span>GPay</span>
+                </a>
+                <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="return openPayModal(event);" class="upi-app-btn pay-trigger" style="--app-color: #5F259F; padding: 6px 14px; font-size: 0.78rem;">
+                    <span class="upi-app-icon">📲</span>
+                    <span>PhonePe</span>
+                </a>
+                <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="return openPayModal(event);" class="upi-app-btn pay-trigger" style="--app-color: #00B9F5; padding: 6px 14px; font-size: 0.78rem;">
+                    <span class="upi-app-icon">💰</span>
+                    <span>Paytm</span>
+                </a>
+                <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="return openPayModal(event);" class="upi-app-btn pay-trigger" style="--app-color: #ff6600; padding: 6px 14px; font-size: 0.78rem;">
+                    <span class="upi-app-icon">🏦</span>
+                    <span>BHIM</span>
+                </a>
+            </div>
+
+            <div style="margin-top: 1.2rem; display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap;" data-aos="fade-up" data-aos-delay="800">
+                <a href="assets/pro_trader_certificate.pdf" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; color: var(--bull-green); text-decoration: none; font-weight: 700; background: rgba(0, 255, 157, 0.1); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(0, 255, 157, 0.3); transition: all 0.3s ease; font-size: 0.85rem;" onmouseover="this.style.background='rgba(0, 255, 157, 0.2)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='rgba(0, 255, 157, 0.1)'; this.style.transform='translateY(0)';">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="m9 12 2 2 4-4"></path></svg>
+                    Certified Pro Trader
+                </a>
+                <a href="#get-access" style="display: inline-flex; align-items: center; gap: 8px; color: rgba(255,255,255,0.6); text-decoration: none; font-weight: 600; background: rgba(255,255,255,0.05); padding: 8px 16px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); transition: all 0.3s ease; font-size: 0.85rem;" onmouseover="this.style.background='rgba(255,255,255,0.1)'; this.style.transform='translateY(-2px)';" onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.transform='translateY(0)';">
+                    View All Features ↓
+                </a>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Verified P&L Report Section (3-Year Transformation: BEFORE vs AFTER) -->
+    <section id="proof" class="container" style="padding: 70px 20px; max-width: 1300px; margin: 0 auto; text-align: center; opacity: 1 !important; visibility: visible !important;">
+        <div style="display: inline-block; background: rgba(0, 255, 157, 0.12); border: 1.5px solid rgba(0, 255, 157, 0.4); border-radius: 30px; padding: 6px 22px; color: #00ff9d; font-weight: 900; font-size: 0.85rem; letter-spacing: 1.5px; margin-bottom: 14px; text-transform: uppercase;">
+            🏆 3-YEAR VERIFIED PROOF OF TRANSFORMATION
+        </div>
+        
+        <h2 style="font-size: clamp(1.6rem, 4vw, 2.8rem); font-weight: 900; color: #ffffff; margin-bottom: 12px; line-height: 1.3;">
+            REAL TRADER VERIFIED P&L — 3 CONSECUTIVE YEARS<br>
+            <span style="color: #ff3e3e;">2024-25: -₹11.14L</span>
+            <span style="color: rgba(255,255,255,0.3); font-size: 1.2rem; margin: 0 6px;">➔</span>
+            <span style="color: #00ff9d;">2025-26: +₹11.42L</span>
+            <span style="color: rgba(255,255,255,0.3); font-size: 1.2rem; margin: 0 6px;">➔</span>
+            <span style="color: #00ff9d;">2026-27: +₹9.32L</span>
+        </h2>
+        
+        <p style="color: rgba(255, 255, 255, 0.78); max-width: 880px; margin: 0 auto 35px; font-size: 1.02rem; line-height: 1.6;">
+            "FY 2024-25 I lost <strong>-₹11.14 Lakhs</strong> trading F&O blindly. After switching to BIG SHOT Orderflow in FY 2025-26 I made <strong>+₹11.42 Lakhs</strong>. And FY 2026-27 (current year) I'm already at <strong>+₹9.32 Lakhs profit</strong>. All verified on Kotak Neo — same account, same trader."
+        </p>
+
+        <!-- Total Net Turnaround Hero Badge -->
+        <div style="background: linear-gradient(135deg, rgba(0, 255, 157, 0.15), rgba(0, 179, 89, 0.1)); border: 2px solid #00ff9d; border-radius: 18px; padding: 16px 24px; display: inline-flex; align-items: center; justify-content: center; gap: 15px; flex-wrap: wrap; margin-bottom: 35px; box-shadow: 0 0 30px rgba(0, 255, 157, 0.25);">
+            <div style="font-size: 0.85rem; color: rgba(255,255,255,0.7); font-weight: 700; text-transform: uppercase;">Total P&L Turnaround (3 Years):</div>
+            <div style="font-size: 1.8rem; font-weight: 900; color: #00ff9d; letter-spacing: -0.5px;">+₹31.89 LAKHS SWING</div>
+            <span style="background: #00ff9d; color: #000; font-size: 0.72rem; font-weight: 900; padding: 4px 10px; border-radius: 20px;">Kotak Neo Verified (Account ID: XX9HO)</span>
+        </div>
+
+        <!-- 3-CARD COMPARISON GRID -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 35px; text-align: left;">
+            
+            <!-- CARD 1: FY 2024-2025 LOSS -->
+            <div style="background: rgba(255, 62, 62, 0.05); border: 2px solid rgba(255, 62, 62, 0.4); border-radius: 20px; padding: 18px; box-shadow: 0 15px 35px rgba(0,0,0,0.5);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="background: #ff3e3e; color: #fff; font-size: 0.72rem; font-weight: 900; padding: 4px 10px; border-radius: 6px; text-transform: uppercase;">🔴 BEFORE ORDERFLOW</span>
+                    <span style="color: rgba(255,255,255,0.5); font-size: 0.78rem; font-weight: 700;">FY 2024-25</span>
+                </div>
+
+                <div style="margin-bottom: 14px; padding: 10px; background: rgba(255, 62, 62, 0.12); border-radius: 12px; border: 1px solid rgba(255, 62, 62, 0.3);">
+                    <div style="font-size: 0.72rem; color: rgba(255,255,255,0.6); font-weight: 700; text-transform: uppercase;">Net P&L:</div>
+                    <div style="font-size: 1.65rem; font-weight: 900; color: #ff3e3e;">-₹11,14,583.45</div>
+                    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5); margin-top: 2px;">Gross: -₹10.38L • Charges: ₹76.4K</div>
+                </div>
+
+                <a href="assets/kotak_neo_pnl_2024_2025.png" target="_blank" title="Click to expand FY 2024-2025 Loss Report">
+                    <img loading="lazy" src="assets/kotak_neo_pnl_2024_2025.png" alt="Kotak Neo FY 2024-2025 Loss Report" style="width: 100%; height: auto; border-radius: 10px; border: 1px solid rgba(255,62,62,0.3);">
+                </a>
+                
+                <p style="font-size: 0.78rem; color: rgba(255,255,255,0.6); margin-top: 10px; line-height: 1.4;">
+                    ❌ Trading F&O blindly without orderflow — heavy red months, trapped by stop-hunts.
+                </p>
+            </div>
+
+            <!-- CARD 2: FY 2025-2026 PROFIT -->
+            <div style="background: rgba(0, 255, 157, 0.05); border: 2px solid #00ff9d; border-radius: 20px; padding: 18px; box-shadow: 0 15px 40px rgba(0,255,157,0.15);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="background: #00ff9d; color: #000; font-size: 0.72rem; font-weight: 900; padding: 4px 10px; border-radius: 6px; text-transform: uppercase;">🟢 YEAR 1 WITH ORDERFLOW</span>
+                    <span style="color: #00ff9d; font-size: 0.78rem; font-weight: 800;">FY 2025-26</span>
+                </div>
+
+                <div style="margin-bottom: 14px; padding: 10px; background: rgba(0, 255, 157, 0.15); border-radius: 12px; border: 1.5px solid #00ff9d;">
+                    <div style="font-size: 0.72rem; color: rgba(255,255,255,0.7); font-weight: 700; text-transform: uppercase;">Net P&L:</div>
+                    <div style="font-size: 1.65rem; font-weight: 900; color: #00ff9d;">+₹11,42,521.33</div>
+                    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.6); margin-top: 2px;">Gross: +₹12.95L • Turnover: ₹4.24 Cr</div>
+                </div>
+
+                <a href="assets/kotak_neo_pnl_2025_2026.png" target="_blank" title="Click to expand FY 2025-2026 Profit Report">
+                    <img loading="lazy" src="assets/kotak_neo_pnl_2025_2026.png" alt="Kotak Neo FY 2025-2026 Profit Report" style="width: 100%; height: auto; border-radius: 10px; border: 1px solid rgba(0,255,157,0.4);">
+                </a>
+
+                <p style="font-size: 0.78rem; color: rgba(255,255,255,0.75); margin-top: 10px; line-height: 1.4;">
+                    ✅ First year with Orderflow — consistent green months, tracking whale accumulation.
+                </p>
+            </div>
+
+            <!-- CARD 3: FY 2026-2027 PROFIT (CURRENT YEAR) -->
+            <div style="background: rgba(0, 255, 157, 0.05); border: 2px solid rgba(0, 200, 120, 0.6); border-radius: 20px; padding: 18px; box-shadow: 0 15px 40px rgba(0,255,157,0.15); position: relative; overflow: hidden;">
+                <!-- LIVE badge -->
+                <div style="position: absolute; top: 14px; right: -28px; background: #00ff9d; color: #000; font-size: 0.65rem; font-weight: 900; padding: 3px 35px; transform: rotate(45deg); letter-spacing: 1px;">LIVE</div>
+                
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <span style="background: linear-gradient(135deg, #00ff9d, #00cc7a); color: #000; font-size: 0.72rem; font-weight: 900; padding: 4px 10px; border-radius: 6px; text-transform: uppercase;">🟢 YEAR 2 WITH ORDERFLOW</span>
+                    <span style="color: #00ff9d; font-size: 0.78rem; font-weight: 800;">FY 2026-27</span>
+                </div>
+
+                <div style="margin-bottom: 14px; padding: 10px; background: rgba(0, 255, 157, 0.15); border-radius: 12px; border: 1.5px solid #00ff9d;">
+                    <div style="font-size: 0.72rem; color: rgba(255,255,255,0.7); font-weight: 700; text-transform: uppercase;">Net P&L (So Far):</div>
+                    <div style="font-size: 1.65rem; font-weight: 900; color: #00ff9d;">+₹9,32,848.36</div>
+                    <div style="font-size: 0.7rem; color: rgba(255,255,255,0.6); margin-top: 2px;">Gross: +₹10.18L • Turnover: ₹1.12 Cr</div>
+                </div>
+
+                <a href="assets/kotak_neo_pnl_2026_2027.png" target="_blank" title="Click to expand FY 2026-2027 Profit Report">
+                    <img loading="lazy" src="assets/kotak_neo_pnl_2026_2027.png" alt="Kotak Neo FY 2026-2027 Profit Report" style="width: 100%; height: auto; border-radius: 10px; border: 1px solid rgba(0,255,157,0.4);">
+                </a>
+
+                <p style="font-size: 0.78rem; color: rgba(255,255,255,0.75); margin-top: 10px; line-height: 1.4;">
+                    ✅ Current year — still profitable, consistent green bars powered by TBT Level 3 Orderflow.
+                </p>
+            </div>
+
+        </div>
+
+        <!-- Takeaway Banner -->
+        <div style="background: linear-gradient(135deg, rgba(0, 255, 157, 0.12), rgba(0, 179, 89, 0.08)); border: 1px solid rgba(0, 255, 157, 0.3); border-radius: 16px; padding: 22px; text-align: center; max-width: 900px; margin: 0 auto;">
+            <h3 style="color: #00ff9d; font-weight: 900; font-size: 1.15rem; margin-bottom: 8px;">
+                🚀 Turn Your Trading Around With TBT Level 3 Orderflow
+            </h3>
+            <p style="color: rgba(255,255,255,0.85); font-size: 0.92rem; line-height: 1.6; margin: 0 0 15px;">
+                Don't remain part of the 95% loss-making retail traders. Equipping yourself with institutional orderflow intelligence changes your trading strategy completely.
+            </p>
+            <a href="#download-section" onclick="return handleDownloadClick(event, 'windows');" class="mega-pay-button" style="background: linear-gradient(135deg, #00ff9d, #00b359); color: #000; font-weight: 900; padding: 12px 28px; border-radius: 30px; text-decoration: none; font-size: 0.95rem; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 0 20px rgba(0,255,157,0.4);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                <span>DOWNLOAD BIG SHOT ORDERFLOW TERMINAL NOW</span>
+            </a>
+        </div>
+    </section>
+
+
+    <!-- Dedicated Software Download Section (Windows & Android) -->
+    <section id="download-section" class="container" style="padding: 60px 20px; max-width: 1100px; margin: 0 auto; text-align: center; opacity: 1 !important; visibility: visible !important; transform: none !important;">
+        <div style="display: inline-block; background: rgba(0, 255, 157, 0.1); border: 1px solid rgba(0, 255, 157, 0.3); border-radius: 30px; padding: 6px 18px; color: var(--bull-green); font-weight: 800; font-size: 0.85rem; letter-spacing: 1.5px; margin-bottom: 12px; text-transform: uppercase;">
+            ⚡ OFFICIAL SOFTWARE RELEASES
+        </div>
+        <h2 style="font-size: clamp(2rem, 4vw, 3rem); font-weight: 900; background: linear-gradient(180deg, #ffffff 0%, #00ff9d 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px;">
+            DOWNLOAD BIG SHOT PRO
+        </h2>
+        <p style="color: rgba(255, 255, 255, 0.7); max-width: 650px; margin: 0 auto 40px; font-size: 1rem; line-height: 1.6;">
+            Get institutional-grade TBT Level 3 orderflow software. Select your platform below to download for <strong>Windows PC</strong> or <strong>Android Mobile</strong>.
+        </p>
+
+        <!-- Platform Download Grid -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; align-items: stretch;">
+            
+            <!-- Windows Download Card -->
+            <div class="glass" style="padding: 32px 24px; border-radius: 20px; border: 1px solid rgba(0, 255, 157, 0.3); background: rgba(10, 15, 20, 0.85); backdrop-filter: blur(12px); display: flex; flex-direction: column; justify-content: space-between; transition: all 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" onmouseover="this.style.borderColor='#00ff9d'; this.style.transform='translateY(-4px)';" onmouseout="this.style.borderColor='rgba(0, 255, 157, 0.3)'; this.style.transform='translateY(0)';">
+                <div>
+                    <div style="width: 60px; height: 60px; background: rgba(0, 255, 157, 0.12); border-radius: 16px; border: 1px solid rgba(0, 255, 157, 0.3); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #00ff9d;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M0 3.449L9.75 2.1v9.451H0m10.95-9.6L24 0v11.4H10.95M0 12.6h9.75v9.451L0 20.699M10.95 12.6H24V24l-13.05-1.8"/>
+                        </svg>
+                    </div>
+                    <div style="font-size: 0.8rem; font-weight: 800; color: #00ff9d; letter-spacing: 1px; margin-bottom: 6px;">WINDOWS DESKTOP</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 900; color: #fff; margin-bottom: 8px;">BIG SHOT Pro for Windows</h3>
+                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-bottom: 18px;">Version 1.0.4 • 64-bit • Win 10 / 11</div>
+                    
+                    <ul style="text-align: left; list-style: none; padding: 0; margin: 0 0 24px; color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 2;">
+                        <li style="display: flex; align-items: center; gap: 8px;">✅ Multi-Monitor Orderflow Charting</li>
+                        <li style="display: flex; align-items: center; gap: 8px;">✅ Zero-Lag TBT Level 3 Institutional Feed</li>
+                        <li style="display: flex; align-items: center; gap: 8px;">✅ Advanced Heatmap & Delta Signals</li>
+                        <li style="display: flex; align-items: center; gap: 8px;">✅ Standalone Windows (.exe / .zip) Release</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <a href="#" onclick="return handleDownloadClick(event, 'windows');" class="cta-button" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 14px 20px; font-weight: 900; font-size: 1rem; border-radius: 30px; background: linear-gradient(135deg, #00ff9d, #00b359); color: #000; text-decoration: none; box-shadow: 0 0 20px rgba(0,255,157,0.4);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                        DOWNLOAD WINDOWS RELEASE
+                    </a>
+                    <div style="margin-top: 10px; font-size: 0.78rem;">
+                        <a href="https://drive.google.com/file/d/1RTmctGWA-C8HsY7azW0eKmlsVZG9uS2J/view?usp=sharing" target="_blank" style="color: rgba(255,255,255,0.6); text-decoration: underline;">
+                            Google Drive Windows Share Link
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Android Download Card -->
+            <div class="glass" style="padding: 32px 24px; border-radius: 20px; border: 1px solid rgba(255, 255, 255, 0.15); background: rgba(10, 15, 20, 0.85); backdrop-filter: blur(12px); display: flex; flex-direction: column; justify-content: space-between; transition: all 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.5);" onmouseover="this.style.borderColor='#2DA94F'; this.style.transform='translateY(-4px)';" onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.15)'; this.style.transform='translateY(0)';">
+                <div>
+                    <div style="width: 60px; height: 60px; background: rgba(45, 169, 79, 0.15); border-radius: 16px; border: 1px solid rgba(45, 169, 79, 0.4); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: #2DA94F;">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.523 15.3414c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993s-.4482.9997-.9993.9997zm-11.046 0c-.5511 0-.9993-.4486-.9993-.9997s.4482-.9993.9993-.9993c.5511 0 .9993.4482.9993.9993s-.4482.9997-.9993.9997zm11.4045-6.02l1.9973-3.4592a.416.416 0 00-.1523-.5676.416.416 0 00-.5676.1523l-2.0225 3.503C15.5862 8.358 13.8566 8 12 8s-3.5862.358-5.136.95l-2.0225-3.503a.416.416 0 00-.5676-.1523.416.416 0 00-.1523.5676l1.9973 3.4592C2.688 11.0026.31 14.5422.31 18.6667h23.38c0-4.1245-2.378-7.6641-5.8085-9.3453z"/>
+                        </svg>
+                    </div>
+                    <div style="font-size: 0.8rem; font-weight: 800; color: #2DA94F; letter-spacing: 1px; margin-bottom: 6px;">ANDROID MOBILE</div>
+                    <h3 style="font-size: 1.5rem; font-weight: 900; color: #fff; margin-bottom: 8px;">BIG SHOT Pro for Android</h3>
+                    <div style="font-size: 0.85rem; color: rgba(255,255,255,0.5); margin-bottom: 18px;">Version 1.0.4 APK • Android 8.0+</div>
+                    
+                    <ul style="text-align: left; list-style: none; padding: 0; margin: 0 0 24px; color: rgba(255,255,255,0.8); font-size: 0.9rem; line-height: 2;">
+                        <li style="display: flex; align-items: center; gap: 8px;">✅ Mobile Orderflow Signal Radar</li>
+                        <li style="display: flex; align-items: center; gap: 8px;">✅ Instant Real-time Push Notifications</li>
+                        <li style="display: flex; align-items: center; gap: 8px;">✅ Optimized Touch & Gesture Controls</li>
+                        <li style="display: flex; align-items: center; gap: 8px;">✅ Standalone Android APK Release</li>
+                    </ul>
+                </div>
+
+                <div>
+                    <a href="#" onclick="return handleDownloadClick(event, 'apk');" class="secondary-button" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 14px 20px; font-weight: 800; font-size: 1rem; border-radius: 30px; background: rgba(45, 169, 79, 0.2); color: #25D366; border: 1px solid rgba(45, 169, 79, 0.5); text-decoration: none;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                        DOWNLOAD ANDROID APK
+                    </a>
+                    <div style="margin-top: 10px; font-size: 0.78rem;">
+                        <a href="https://drive.google.com/file/d/1jGF0gimdOg3csoorMacxPCBdGxHwue19/view?usp=sharing" target="_blank" style="color: rgba(255,255,255,0.6); text-decoration: underline;">
+                            Google Drive Android Share Link
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Reviews Section -->
+    <section id="reviews-section" class="reviews-section container" style="padding: 40px 0;">
+        <div class="badge" data-aos="fade-up" style="display: block; width: fit-content; margin: 0 auto 1rem;">User Testimonials</div>
+        <h2 style="font-size: clamp(1.8rem, 5vw, 3rem); margin-bottom: 3rem; text-align: center;" data-aos="fade-up">What Traders Are Saying</h2>
+        <div class="reviews-marquee-container" data-aos="fade-up" data-aos-delay="200">
+            <div class="reviews-marquee">
+                <!-- Track 1 -->
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/murugan_avatar.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Karthik R.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Karthik R.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Intha app ennoda capital ah save pannidichu, romba pudichiruku! Masterclass app."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_trading.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Surya V.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Surya V.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Thank you for this! It's changed my life completely. No more random trades."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_indian_man.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Vignesh S.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Vignesh S.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Orderflow purinjikka intha terminal thaan best. Semmaya iruku bro."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_indian_woman.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Anitha M.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Anitha M.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Ennoda trading style eh maathirichu. Excellent UI and super fast."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_pet.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Dinesh K.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Dinesh K.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Loss aagirundha capital ah recover panna mudiyum nu nambikai vanthuruku. Worth every rupee."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/shiva_avatar.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Prakash J.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Prakash J.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Institutional footprint apdiye clear ah theriyuthu. Vera level app thalaiva!"</p>
+                </div>
+                <!-- Track 1 Cloned for seamless loop -->
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_indian_woman_2.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Karthik R.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Karthik R.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Intha app ennoda capital ah save pannidichu, romba pudichiruku! Masterclass app."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_trading_2.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Surya V.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Surya V.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Thank you for this! It's changed my life completely. No more random trades."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_indian_man_2.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Vignesh S.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Vignesh S.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Orderflow purinjikka intha terminal thaan best. Semmaya iruku bro."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_god_3.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Anitha M.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Anitha M.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Ennoda trading style eh maathirichu. Excellent UI and super fast."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_pet_2.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Dinesh K.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Dinesh K.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Loss aagirundha capital ah recover panna mudiyum nu nambikai vanthuruku. Worth every rupee."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="assets/avatar_pet_3.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Prakash J.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem;">Prakash J.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Institutional footprint apdiye clear ah theriyuthu. Vera level app thalaiva!"</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="reviews-marquee-container" style="margin-top: 2rem;" data-aos="fade-up" data-aos-delay="300">
+            <div class="reviews-marquee marquee-reverse">
+                <!-- Track 2 -->
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="./assets/murugan_avatar.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Meena T.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Meena T.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Market structure ah ivlo detail ah pakka mudiyum nu nenachi kooda pakala. Superb work."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Sathish%20B.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Sathish B.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Sathish B.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Daily profit pakka mudiyuthu. Romba romba thanks indha app create pannadhukku."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Ramesh%20P.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Ramesh P.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Ramesh P.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Best orderflow software in India! Namma tamil pasanga senja masterclass ithu."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Siva%20G.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Siva G.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Siva G.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Retail traps ah easy ah kandupudikalam. Ennoda trading accuracy 80% mela poiruchu."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Kamala%20K.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Kamala K.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Kamala K.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Desktop layum mobile layum use panna romba smooth ah iruku. Highly recommended!"</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="./assets/shiva_avatar.png" style="width: 40px; height: 40px; border-radius: 50%;" alt="Arun C.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Arun C.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Whale tracking feature thaan mass. Big players entry ah perfect ah kaatuthu."</p>
+                </div>
+                <!-- Track 2 Cloned for seamless loop -->
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Meena%20T.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Meena T.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Meena T.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Market structure ah ivlo detail ah pakka mudiyum nu nenachi kooda pakala. Superb work."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Sathish%20B.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Sathish B.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Sathish B.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Daily profit pakka mudiyuthu. Romba romba thanks indha app create pannadhukku."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Ramesh%20P.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Ramesh P.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Ramesh P.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Best orderflow software in India! Namma tamil pasanga senja masterclass ithu."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Siva%20G.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Siva G.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Siva G.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Retail traps ah easy ah kandupudikalam. Ennoda trading accuracy 80% mela poiruchu."</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Kamala%20K.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Kamala K.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Kamala K.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Desktop layum mobile layum use panna romba smooth ah iruku. Highly recommended!"</p>
+                </div>
+                <div class="review-card glass">
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                        <img loading="lazy" src="https://ui-avatars.com/api/?name=Arun%20C.&background=00ff9d&color=000&bold=true" style="width: 40px; height: 40px; border-radius: 50%;" alt="Arun C.">
+                        <div>
+                            <div class="review-author" style="margin-bottom: 0.2rem; color: #fff;">Arun C.</div>
+                            <div class="review-stars" style="font-size: 0.8rem;">⭐⭐⭐⭐⭐</div>
+                        </div>
+                    </div>
+                    <p class="review-text">"Whale tracking feature thaan mass. Big players entry ah perfect ah kaatuthu."</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <section id="features" class="container features">
+        <div class="feature-card glass feature-whale" data-aos="fade-up" data-aos-delay="100">
+            <h3>Whale Detection</h3>
+            <p>Spot institutional accumulation and distribution with golden harmonic ripple signals. Follow the big
+                money.</p>
+        </div>
+        <div class="feature-card glass feature-traps" data-aos="fade-up" data-aos-delay="200">
+            <h3>Retail Traps</h3>
+            <p>Identify liquidity traps and stop-hunts with high-intensity magenta glitches. Don't be the exit
+                liquidity.</p>
+        </div>
+        <div class="feature-card glass feature-iceberg" data-aos="fade-up" data-aos-delay="300">
+            <h3>Iceberg Logic</h3>
+            <p>Reveal hidden institutional orders with cyan frost breathing glows. See what others cannot.</p>
+        </div>
+        <div class="feature-card glass feature-delta" data-aos="fade-up" data-aos-delay="400">
+            <h3>Real-time Delta</h3>
+            <p>Professional buyer/seller pressure counters with sub-second responsiveness and predictive analytics.</p>
+        </div>
+    </section>
+
+    <!-- Earn Profits Section -->
+    <section id="earn-profits" class="gallery container" style="padding: 40px 0;">
+        <div class="badge" data-aos="fade-up" style="display: block; width: fit-content; margin: 0 auto 1rem;">Earn Profits</div>
+        <h2 style="font-size: clamp(1.8rem, 5vw, 3rem); margin-bottom: 2rem; text-align: center; color: var(--bull-green);" data-aos="fade-up">Daily Profit Showcase</h2>
+        
+        <div class="gallery-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem; margin-bottom: 40px;">
+            <div class="profit-container glass" data-aos="zoom-in" style="border: 1px solid var(--bull-green); box-shadow: 0 0 20px rgba(0, 255, 128, 0.15);">
+                <img loading="lazy" src="assets/profit_1.jpg" alt="Daily Profit Screenshot 1" style="border-radius: 8px; width: 100%; object-fit: contain;">
+                <div class="screenshot-label" style="background: var(--bull-green); color: #000; font-weight: bold;">+22,724 PROFIT</div>
+            </div>
+            <div class="profit-container glass" data-aos="zoom-in" data-aos-delay="100" style="border: 1px solid var(--bull-green); box-shadow: 0 0 20px rgba(0, 255, 128, 0.15);">
+                <img loading="lazy" src="assets/profit_2.jpg" alt="Daily Profit Screenshot 2" style="border-radius: 8px; width: 100%; object-fit: contain;">
+                <div class="screenshot-label" style="background: var(--bull-green); color: #000; font-weight: bold;">+36,050 PROFIT</div>
+            </div>
+            <div class="profit-container glass" data-aos="zoom-in" data-aos-delay="200" style="border: 1px solid var(--bull-green); box-shadow: 0 0 20px rgba(0, 255, 128, 0.15);">
+                <img loading="lazy" src="assets/profit_3.jpg" alt="Daily Profit Screenshot 3" style="border-radius: 8px; width: 100%; object-fit: contain;">
+                <div class="screenshot-label" style="background: var(--bull-green); color: #000; font-weight: bold;">+13,295 PROFIT</div>
+            </div>
+        </div>
+    </section>
+
+    
+    <section id="proof" class="gallery container" style="padding: 40px 0;">
+        <div class="badge" data-aos="fade-up" style="display: block; width: fit-content; margin: 0 auto 1rem;">Live Proof</div>
+        <h2 style="font-size: clamp(1.8rem, 5vw, 3rem); margin-bottom: 2rem; text-align: center;" data-aos="fade-up">Terminal Gallery & Signals</h2>
+        
+        <!-- Live YouTube Short Video Feature -->
+        <div class="video-showcase-container" data-aos="zoom-in" style="margin: 0 auto 2.5rem; text-align: center; max-width: 420px;">
+            <div style="background: rgba(255, 71, 87, 0.12); color: #ff4757; border: 1px solid rgba(255, 71, 87, 0.4); padding: 5px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 800; display: inline-flex; align-items: center; gap: 6px; margin-bottom: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+                LIVE STRATEGY DEMO
+            </div>
+            <h3 style="font-size: 1.2rem; color: #fff; margin-bottom: 1rem; font-weight: 800; letter-spacing: 0.5px;">Watch BIG SHOT Orderflow In Action</h3>
+            <div style="border-radius: 18px; overflow: hidden; border: 2px solid rgba(0, 255, 157, 0.4); box-shadow: 0 12px 35px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 255, 157, 0.25); background: #000; position: relative;">
+                <div style="position: relative; padding-bottom: 177.77%; height: 0; overflow: hidden;">
+                    <iframe src="https://www.youtube.com/embed/4ilxsYcgNHY?autoplay=0&rel=0" title="BIG SHOT Orderflow Live Strategy Demo" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;"></iframe>
+                </div>
+            </div>
+            <div style="margin-top: 0.8rem;">
+                <a href="https://youtube.com/shorts/4ilxsYcgNHY?si=z72GdgmC7KwTgKGy" target="_blank" style="color: #ff4757; font-weight: 800; text-decoration: none; font-size: 0.85rem; display: inline-flex; align-items: center; gap: 6px; background: rgba(255, 71, 87, 0.1); padding: 8px 18px; border-radius: 20px; border: 1px solid rgba(255, 71, 87, 0.3); transition: all 0.3s ease;">
+                    <span>Open in YouTube App →</span>
+                </a>
+            </div>
+        </div>
+        
+        <div class="gallery-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.2rem;">
+            <!-- Desktop Terminal (Full Width) -->
+            <div class="screenshot-container" data-aos="zoom-in" style="grid-column: 1 / -1; text-align: center;">
+                <img loading="lazy" src="assets/desktop_terminal.png" alt="BIG SHOT Desktop Terminal - Bank Nifty Orderflow Analysis" style="width: 100%; border-radius: 12px;">
+                <div class="screenshot-label" style="margin-bottom: 1rem;">🖥️ DESKTOP TERMINAL — BANK NIFTY LIVE ORDERFLOW</div>
+                <div style="margin: 0.8rem 0 1.5rem;">
+                    <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="return openPayModal(event);" class="cta-button pay-trigger" id="galleryPayBtn" style="font-size: 1.1rem; padding: 14px 40px; letter-spacing: 1.5px; display: inline-flex; align-items: center; gap: 8px;">💳 PAY ₹19,999 — GET DESKTOP & ANDROID PRO ACCESS</a>
+                </div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/gallery_heatmap.jpg" alt="Nifty 50 Stock Heatmap">
+                <div class="screenshot-label">NIFTY 50 STOCK HEATMAP</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/gallery_nifty_chart_1.jpg" alt="Live Orderflow Radar">
+                <div class="screenshot-label">LIVE ORDERFLOW RADAR</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/gallery_nifty_chart_2.jpg" alt="Candle Orderflow Analysis">
+                <div class="screenshot-label">CANDLE ORDERFLOW ANALYSIS</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/app_icon.jpg" alt="BIG SHOT App Icon">
+                <div class="screenshot-label">BIG SHOT APP</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/splash_screen.jpg" alt="Splash Screen">
+                <div class="screenshot-label">MASTER THE ORDERFLOW</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/risk_disclosure.jpg" alt="Risk Disclosure">
+                <div class="screenshot-label">RISK DISCLOSURE</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/liquidity_exit.jpg" alt="Liquidity Exit Signal">
+                <div class="screenshot-label">LIQUIDITY EXIT ANALYZER</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/selling_pressure.jpg" alt="Selling Pressure Signal">
+                <div class="screenshot-label">SELLING PRESSURE DETECTOR</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/whale_block.jpg" alt="Whale Block Signal">
+                <div class="screenshot-label">WHALE BLOCK INDICATOR</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/retail_trap.jpg" alt="Retail Trap Signal">
+                <div class="screenshot-label">RETAIL TRAP IDENTIFIER</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/market_flow.jpg" alt="Market Flow Analysis">
+                <div class="screenshot-label">INSTITUTIONAL FEED ACTIVE</div>
+            </div>
+
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/gallery_bull_signal.jpg" alt="Bullish Delta Squeeze">
+                <div class="screenshot-label">BULLISH DELTA SQUEEZE</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in">
+                <img loading="lazy" src="assets/gallery_bear_trap.jpg" alt="Institutional Bear Trap">
+                <div class="screenshot-label">INSTITUTIONAL BEAR TRAP</div>
+            </div>
+            <!-- Signal Radar Stock Scans -->
+            <div class="screenshot-container" data-aos="zoom-in" data-aos-delay="100" style="aspect-ratio: 9/19;">
+                <img loading="lazy" src="assets/radar_page_1.jpg" alt="Orderflow Signal Radar - Stock Scan Page 1" style="object-fit: cover; object-position: top; width:100%; height:100%;">
+                <div class="screenshot-label" style="color: var(--bull-green);">⚡ SIGNAL RADAR — PAGE 1</div>
+            </div>
+            <div class="screenshot-container" data-aos="zoom-in" data-aos-delay="200" style="aspect-ratio: 9/19;">
+                <img loading="lazy" src="assets/radar_page_2.jpg" alt="Orderflow Signal Radar - Stock Scan Page 2" style="object-fit: cover; object-position: top; width:100%; height:100%;">
+                <div class="screenshot-label" style="color: var(--bull-green);">🚀 SIGNAL RADAR — PAGE 2</div>
+            </div>
+        </div>
+    </section>
+
+
+
+    <!-- Terminal Features Section -->
+    <section id="terminal-features" class="features" style="background: linear-gradient(to bottom, #050a0f, #0a0f14);">
+        <div class="container">
+            <div class="section-title" data-aos="fade-up" style="text-align: center; margin-bottom: 4rem;">
+                <div class="badge" style="margin-bottom: 1rem;">WEB EXCLUSIVE</div>
+                <h2 style="font-size: 3.5rem; color: #fff;">Next-Gen Web Terminal</h2>
+                <p style="color: var(--text-secondary); font-size: 1.2rem;">Experience the full power of Orderflow on your Desktop and iOS devices.</p>
+            </div>
+            <div class="features-grid">
+                <div class="feature-card glass" data-aos="fade-up" data-aos-delay="100">
+                    <div class="feature-icon" style="margin-bottom: 1.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    </div>
+                    <h3>Multi-Monitor Support</h3>
+                    <p>Designed for large displays. Monitor NIFTY, BANK NIFTY & Stocks simultaneously with crystal clear resolution and zero lag.</p>
+                </div>
+                <div class="feature-card glass" data-aos="fade-up" data-aos-delay="200">
+                    <div class="feature-icon" style="margin-bottom: 1.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    </div>
+                    <h3>Browser Alerts</h3>
+                    <p>Receive real-time institutional injection alerts even when you are on another tab. Never miss a market shift.</p>
+                </div>
+                <div class="feature-card glass" data-aos="fade-up" data-aos-delay="300">
+                    <div class="feature-icon" style="margin-bottom: 1.5rem;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L22 22m-5-5l4-4"></path></svg>
+                    </div>
+                    <h3>Zero Latency</h3>
+                    <p>Powered by Firebase Realtime Database. Your web terminal syncs with institutional data faster than any website.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    
+    <!-- ═══ STATIC SOFTWARE SHOWCASE & BUY SECTION ═══ -->
+    <section id="get-access" style="padding: 60px 0; background: #050a0f; position: relative;">
+        <div class="container" style="text-align: center; position: relative; z-index: 2;">
+            <!-- Badge -->
+            <div style="margin-bottom: 1.5rem;">
+                <span class="buy-badge-animated">🏆 PROFESSIONAL TRADING SOFTWARE</span>
+            </div>
+            
+            <!-- Title -->
+            <h2 class="buy-title-glow" style="margin-bottom: 0.5rem;">
+                BIG SHOT Orderflow Terminal
+            </h2>
+            <p style="color: rgba(255,255,255,0.6); font-size: 1.1rem; max-width: 620px; margin: 0 auto 2rem; line-height: 1.6;">
+                The most advanced <span style="color: #00ff9d; font-weight: 700;">institutional signal detection</span> system built for Indian markets.
+            </p>
+
+            <!-- Software Box -->
+            <div class="software-box-3d" style="max-width: 400px; margin: 0 auto 1.2rem; position: relative;">
+                <div class="box-inner-3d">
+                    <img src="assets/software_box_mockup.png" alt="BIG SHOT Orderflow Terminal - Pro Edition" style="width: 100%; height: auto; border-radius: 16px;">
+                </div>
+                <!-- Static tags -->
+                <div class="floating-tag tag-1">
+                    <span class="tag-dot" style="background: #00ff9d;"></span> REAL-TIME SIGNALS
+                </div>
+                <div class="floating-tag tag-2">
+                    <span class="tag-dot" style="background: #ffcc00;"></span> WHALE DETECTION
+                </div>
+                <div class="floating-tag tag-3">
+                    <span class="tag-dot" style="background: #00ffff;"></span> 50+ STOCKS
+                </div>
+                <div class="floating-tag tag-4">
+                    <span class="tag-dot" style="background: #ff6b6b;"></span> ANDROID & DESKTOP
+                </div>
+            </div>
+            <!-- Price Reveal (Clean & Stable) -->
+            <div class="price-reveal-container" style="margin-top: 1rem; text-align: center;">
+                <div style="display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 0.6rem;">
+                    <span style="text-decoration: line-through; font-size: 1.3rem; color: rgba(255,255,255,0.4); font-weight: 600;">₹49,999</span>
+                    <span style="font-size: 2.8rem; font-weight: 900; color: #00ff9d; letter-spacing: -1px;">₹19,999</span>
+                    <span style="background: #ff3e3e; color: #fff; padding: 4px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 800; letter-spacing: 1px;">60% OFF</span>
+                </div>
+                <p style="color: #00ff9d; font-size: 0.9rem; font-weight: 600; letter-spacing: 0.5px; margin-bottom: 1.2rem;">1 Year • Index + Stocks • Android & Desktop</p>
+            </div>
+
+            <!-- Stable PAY & DOWNLOAD Buttons (Immediately Below Showcase) -->
+            <div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; text-align: center; margin-top: 0.5rem;">
+                <a href="#" onclick="return handleDownloadClick(event, 'windows');" class="mega-pay-button" style="font-size: 1.15rem; padding: 16px 36px; border-radius: 50px; background: linear-gradient(135deg, #00ff9d, #00b359); color: #000; font-weight: 900; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; box-shadow: 0 8px 30px rgba(0, 255, 157, 0.4); border: 2px solid #ffffff;">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+                    <span>⬇️ DOWNLOAD PRO RELEASE</span>
+                </a>
+                <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Orderflow%20Terminal%20-%20Pro%20Access" onclick="return openPayModal(event);" class="mega-pay-button pay-trigger" id="megaPayBtn" style="font-size: 1.15rem; padding: 16px 36px; border-radius: 50px; background: rgba(0, 255, 157, 0.15); color: #00ff9d; font-weight: 900; text-decoration: none; display: inline-flex; align-items: center; gap: 10px; border: 2px solid rgba(0, 255, 157, 0.5);">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;">
+                        <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+                        <line x1="1" y1="10" x2="23" y2="10"></line>
+                    </svg>
+                    <span>PAY ₹19,999 — GET PRO ACCESS</span>
+                </a>
+
+                <!-- Individual UPI App Buttons -->
+                <div style="display: flex; justify-content: center; gap: 14px; margin-top: 1.2rem; flex-wrap: wrap;">
+                    <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="return openPayModal(event);" class="upi-app-btn pay-trigger" style="--app-color: #2DA94F;">
+                        <span class="upi-app-icon">💳</span>
+                        <span>GPay</span>
+                    </a>
+                    <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="return openPayModal(event);" class="upi-app-btn pay-trigger" style="--app-color: #5F259F;">
+                        <span class="upi-app-icon">📲</span>
+                        <span>PhonePe</span>
+                    </a>
+                    <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="return openPayModal(event);" class="upi-app-btn pay-trigger" style="--app-color: #00B9F5;">
+       -- WhatsApp CTA -->
+                        <div class="qr-whatsapp-note">
+                            <p>After payment, contact via WhatsApp for instant activation</p>
+                            <a href="https://wa.me/919361290090?text=Hi%2C%20I%20have%20paid%20%E2%82%B910%2C000%20for%20BIG%20SHOT%20Pro%20Access.%20Please%20activate%20my%20account." class="qr-whatsapp-btn" target="_blank">
+                                💬 Contact WhatsApp
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security trust bar -->
+                <div class="trust-bar" data-aos="fade-up" data-aos-delay="600">
+                    <span class="trust-item">🔒 Secure UPI Payment</span>
+                    <span class="trust-divider">•</span>
+                    <span class="trust-item">⚡ Instant Activation</span>
+                    <span class="trust-divider">•</span>
+                    <span class="trust-item">💬 WhatsApp Support</span>
+                </div>
+            </div>
+
+            <!-- Animated users count -->
+            <div data-aos="fade-up" data-aos-delay="700" class="live-users-bar">
+                <div class="live-dot"></div>
+                <span><strong id="activeTraders">247</strong> traders actively using BIG SHOT right now</span>
+            </div>
+        </div>
+    </section>
+
+    <style>
+        /* ═══ BUYING EXPERIENCE ANIMATIONS ═══ */
+        
+        /* Static styling - No moving animations */
+        .buy-badge-animated {
+            display: inline-block;
+            padding: 8px 24px;
+            background: rgba(0,255,157,0.15);
+            border: 1px solid rgba(0,255,157,0.3);
+            border-radius: 30px;
+            color: #00ff9d;
+            font-size: 0.75rem;
+            font-weight: 800;
+            letter-spacing: 2.5px;
+            box-shadow: 0 0 15px rgba(0,255,157,0.2);
+        }
+        
+        /* Title */
+        .buy-title-glow {
+            font-size: clamp(2.2rem, 7vw, 4rem);
+            margin-bottom: 0.8rem;
+            color: #ffffff;
+            font-weight: 900;
+            line-height: 1.15;
+        }
+        
+        /* 3D Software Box - Static */
+        .software-box-3d {
+            position: relative;
+        }
+        .box-inner-3d {
+            border-radius: 16px;
+            filter: drop-shadow(0 15px 35px rgba(0,255,157,0.15)) drop-shadow(0 10px 30px rgba(0,0,0,0.5));
+        }
+        
+        /* Floating Tags - Static */
+        .floating-tag {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 18px;
+            border-radius: 25px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 1.2px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1);
+            white-space: nowrap;
+        }
+        .tag-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .tag-1 {
+            top: 10%; left: -20px;
+            background: rgba(0,255,157,0.15);
+            color: #00ff9d;
+        }
+        .tag-2 {
+            top: 35%; right: -20px;
+            background: rgba(255,204,0,0.15);
+            color: #ffcc00;
+        }
+        .tag-3 {
+            bottom: 30%; left: -20px;
+            background: rgba(0,255,255,0.15);
+            color: #00ffff;
+        }
+        .tag-4 {
+            bottom: 8%; right: -20px;
+            background: rgba(255,107,107,0.15);
+            color: #ff6b6b;
+        }
+        
+        /* Price Section */
+        .price-reveal-container {
+            margin-top: 0.5rem;
+        }
+        
+        .original-price-slash {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+        .original-price-text {
+            font-size: 1.5rem;
+            color: rgba(255,255,255,0.35);
+            font-weight: 600;
+            letter-spacing: 1px;
+            text-decoration: line-through;
+        }
+        
+        .main-price-animated {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 4px;
+            margin: 4px 0;
+        }
+        .rupee-symbol {
+            font-size: 2rem;
+            font-weight: 700;
+            color: rgba(255,255,255,0.7);
+        }
+        .price-counter {
+            font-size: 3.5rem;
+            font-weight: 900;
+            color: #00ff9d;
+            font-family: 'Inter', monospace;
+            letter-spacing: -1px;
+        }
+        
+        .discount-badge-animated {
+            display: inline-block;
+            background: #ff3e3e;
+            color: #fff;
+            padding: 4px 16px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            margin-top: 4px;
+        }
+        
+        /* Feature Pills */
+        .feature-pills {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 1rem;
+        }
+        .pill {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 30px;
+            color: rgba(255,255,255,0.8);
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        /* MEGA PAY BUTTON - Solid & Static & Centered */
+        .mega-pay-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            padding: 16px 36px;
+            border-radius: 60px;
+            text-decoration: none;
+            font-size: 1.15rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            color: #000;
+            background: #00ff9d;
+            box-shadow: 0 8px 35px rgba(0,255,157,0.4), 0 0 60px rgba(0,255,157,0.15), inset 0 1px 0 rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: transform 0.2s ease, background 0.2s ease;
+            max-width: 100%;
+            box-sizing: border-box;
+            word-break: break-word;
+        }
+        .mega-pay-button:hover {
+            transform: translateY(-3px) scale(1.02);
+            box-shadow: 0 15px 50px rgba(0,255,157,0.6);
+        }
+        .mega-pay-button:active {
+            transform: translateY(-1px) scale(0.98);
+        }
+        
+        /* ALWAYS VISIBLE FLOATING PAY NOW FAB BUTTON */
+        .floating-pay-fab {
+            position: fixed;
+            bottom: 25px;
+            left: 25px;
+            z-index: 99999;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 14px 28px;
+            background: #00ff9d;
+            color: #000000;
+            font-size: 1.05rem;
+            font-weight: 900;
+            letter-spacing: 1px;
+            border-radius: 50px;
+            text-decoration: none;
+            box-shadow: 0 10px 35px rgba(0, 255, 157, 0.5), 0 0 20px rgba(0, 0, 0, 0.8);
+            border: 2px solid #ffffff;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .floating-pay-fab:hover {
+            transform: translateY(-3px) scale(1.04);
+            box-shadow: 0 15px 45px rgba(0, 255, 157, 0.7);
+        }
+        @media (max-width: 768px) {
+            .floating-pay-fab {
+                display: none !important;
+            }
+        }
+        
+        /* Trust Bar */
+        .trust-bar {
+            margin-top: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .trust-item {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .trust-divider {
+            color: rgba(255,255,255,0.2);
+            font-size: 0.6rem;
+        }
+        
+        /* Live Users Bar */
+        .live-users-bar {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 2.5rem;
+            padding: 10px 24px;
+            background: rgba(0,255,157,0.06);
+            border: 1px solid rgba(0,255,157,0.15);
+            border-radius: 30px;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.85rem;
+        }
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: #00ff9d;
+            border-radius: 50%;
+            animation: live-pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes live-pulse {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,255,157,0.5); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 8px rgba(0,255,157,0); }
+        }
+        .live-users-bar strong {
+            color: #00ff9d;
+            font-weight: 800;
+        }
+        
+        /* UPI App Buttons */
+        .upi-app-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 12px;
+            color: rgba(255,255,255,0.85);
+            font-size: 0.85rem;
+            font-weight: 700;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .upi-app-btn:hover {
+            background: rgba(var(--app-color-rgb, 255,255,255), 0.1);
+            border-color: var(--app-color, rgba(255,255,255,0.3));
+            color: var(--app-color, #fff);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        .upi-app-icon {
+            font-size: 1.1rem;
+        }
+        
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .price-counter { font-size: 3rem; }
+            .mega-pay-button { padding: 16px 30px; font-size: 1rem; }
+            .floating-tag { font-size: 0.6rem; padding: 5px 10px; }
+            .tag-1, .tag-3 { left: 0; }
+            .tag-2, .tag-4 { right: 0; }
+            .feature-pills { gap: 6px; }
+            .pill { font-size: 0.7rem; padding: 6px 12px; }
+            .upi-app-btn { padding: 8px 14px; font-size: 0.78rem; }
+        }
+        
+        /* ═══ QR PAYMENT MODAL ═══ */
+        .qr-modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: modal-fade-in 0.3s ease;
+        }
+        @keyframes modal-fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .qr-modal-card {
+            background: linear-gradient(145deg, #111827 0%, #0d1117 50%, #111827 100%);
+            border: 1px solid rgba(0,255,157,0.25);
+            border-radius: 24px;
+            padding: 24px 20px;
+            max-width: 580px;
+            width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.8), 0 0 60px rgba(0,255,157,0.12);
+            animation: modal-slide-up 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+        @keyframes modal-slide-up {
+            from { transform: translateY(40px) scale(0.95); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
+        }
+        .qr-close-btn {
+            position: absolute;
+            top: 12px; right: 16px;
+            background: none;
+            border: none;
+            color: rgba(255,255,255,0.4);
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 2;
+            line-height: 1;
+        }
+        .qr-close-btn:hover { color: #fff; transform: rotate(90deg); }
+        
+        .qr-modal-header { text-align: center; margin-bottom: 1.5rem; }
+        .qr-modal-badge {
+            display: inline-block;
+            padding: 5px 16px;
+            background: rgba(0,255,157,0.1);
+            border: 1px solid rgba(0,255,157,0.25);
+            border-radius: 20px;
+            color: #00ff9d;
+            font-size: 0.7rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+        }
+        .qr-modal-title {
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: #fff;
+            margin: 0 0 4px;
+        }
+        .qr-modal-subtitle {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.85rem;
+            margin: 0;
+        }
+        
+        /* QR Code */
+        .qr-code-wrapper {
+            position: relative;
+            display: flex;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+        }
+        .qr-code-frame {
+            position: relative;
+            background: #fff;
+            padding: 16px;
+            border-radius: 16px;
+            display: inline-block;
+        }
+        .qr-code-frame canvas, .qr-code-frame img {
+            display: block;
+            border-radius: 4px;
+        }
+        .qr-corner {
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            border-color: #00ff9d;
+            border-style: solid;
+            border-width: 0;
+        }
+        .qr-corner.tl { top: -4px; left: -4px; border-top-width: 3px; border-left-width: 3px; border-radius: 8px 0 0 0; }
+        .qr-corner.tr { top: -4px; right: -4px; border-top-width: 3px; border-right-width: 3px; border-radius: 0 8px 0 0; }
+        .qr-corner.bl { bottom: -4px; left: -4px; border-bottom-width: 3px; border-left-width: 3px; border-radius: 0 0 0 8px; }
+        .qr-corner.br { bottom: -4px; right: -4px; border-bottom-width: 3px; border-right-width: 3px; border-radius: 0 0 8px 0; }
+        
+        .qr-scan-line {
+            position: absolute;
+            top: 10%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #00ff9d, transparent);
+            animation: qr-scan 2.5s ease-in-out infinite;
+            opacity: 0.6;
+        }
+        @keyframes qr-scan {
+            0%, 100% { top: 10%; }
+            50% { top: 85%; }
+        }
+        
+        /* Payment Details */
+        .qr-payment-details {
+            background: rgba(0,255,157,0.05);
+            border: 1px solid rgba(0,255,157,0.15);
+            border-radius: 14px;
+            padding: 14px 18px;
+            margin-bottom: 1rem;
+        }
+        .qr-amount-display {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .qr-amount-label {
+            color: rgba(255,255,255,0.5);
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        .qr-amount-value {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #00ff9d;
+        }
+        .qr-merchant-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.8rem;
+        }
+        .qr-merchant-info strong { color: #fff; }
+        .qr-upi-id {
+            color: rgba(0,255,157,0.7);
+            font-family: monospace;
+            font-size: 0.75rem;
+        }
+        
+        /* Copy Section */
+        .qr-copy-section {
+            text-align: center;
+            margin-bottom: 1rem;
+        }
+        .qr-copy-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .qr-upi-code {
+            color: #00ff9d;
+            font-size: 0.85rem;
+            font-weight: 700;
+            background: rgba(0,0,0,0.4);
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+        .qr-copy-btn {
+            background: rgba(0,255,157,0.15);
+            border: 1px solid rgba(0,255,157,0.3);
+            color: #00ff9d;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.78rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .qr-copy-btn:hover { background: rgba(0,255,157,0.25); }
+        
+        /* App Pills */
+        .qr-apps-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .qr-app-pill {
+            padding: 5px 12px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            color: rgba(255,255,255,0.6);
+            font-size: 0.72rem;
+            font-weight: 600;
+        }
+        
+        /* WhatsApp */
+        .qr-whatsapp-note {
+            text-align: center;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.06);
+        }
+        .qr-whatsapp-note p {
+            color: rgba(255,255,255,0.4);
+            font-size: 0.78rem;
+            margin: 0 0 8px;
+        }
+        .qr-whatsapp-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 20px;
+            background: #25D366;
+            color: #fff;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: 700;
+            font-size: 0.85rem;
+            transition: all 0.3s;
+        }
+        .qr-whatsapp-btn:hover {
+            background: #1EB851;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(37,211,102,0.3);
+        }
+    </style>
+
+    <!-- QR Code Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+    <script>
+    // ═══ BUYING EXPERIENCE ANIMATIONS ═══
+    
+    // Static initialization - No moving scripts
+    (function() {
+        const counter = document.getElementById('priceCounter');
+        if (counter) counter.textContent = '19,999';
+    })();
+    
+    // 5. QR Code Payment Modal & Download Unlocking Logic
+    const WINDOWS_DRIVE_DIRECT = 'https://drive.google.com/uc?export=download&id=1RTmctGWA-C8HsY7azW0eKmlsVZG9uS2J';
+    const APK_DRIVE_DIRECT = 'https://drive.google.com/uc?export=download&id=1jGF0gimdOg3csoorMacxPCBdGxHwue19';
+
+    let payTimerInterval = null;
+    let payTimeRemaining = 300; // 5 minutes payment window
+
+    window.startPayTimer = function() {
+        clearInterval(payTimerInterval);
+        payTimeRemaining = 300;
+        const timerEl = document.getElementById('modalPaymentTimer');
+        function updateDisplay() {
+            if (!timerEl) return;
+            const m = Math.floor(payTimeRemaining / 60);
+            const s = payTimeRemaining % 60;
+            timerEl.textContent = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+        }
+        updateDisplay();
+        payTimerInterval = setInterval(function() {
+            payTimeRemaining--;
+            if (payTimeRemaining <= 0) {
+                clearInterval(payTimerInterval);
+                if (timerEl) timerEl.textContent = "00:00 (Expired)";
+            } else {
+                updateDisplay();
+            }
+        }, 1000);
+    };
+
+    window.unlockDownloads = function(targetPlatform) {
+        localStorage.setItem('bigshot_payment_completed', 'true');
+        const lockedBox = document.getElementById('lockedDownloadBox');
+        const unlockedBox = document.getElementById('unlockedDownloadBox');
+        if (lockedBox) lockedBox.style.display = 'none';
+        if (unlockedBox) unlockedBox.style.display = 'block';
+
+        if (targetPlatform === 'windows') {
+            window.open(WINDOWS_DRIVE_DIRECT, '_blank');
+        } else if (targetPlatform === 'apk') {
+            window.open(APK_DRIVE_DIRECT, '_blank');
+        }
+    };
+
+    window.handleDownloadClick = function(e, platform) {
+        if (e && e.preventDefault) e.preventDefault();
+        if (e && e.stopPropagation) e.stopPropagation();
+
+        platform = platform || 'windows';
+        const isPaid = localStorage.getItem('bigshot_payment_completed') === 'true';
+
+        if (isPaid) {
+            // Payment already complete -> directly trigger download
+            window.unlockDownloads(platform);
+        } else {
+            // Payment pending -> redirect to payment function modal first
+            window.openPayModal(e, platform);
+        }
+        return false;
+    };
+
+    window.triggerWindowsDownload = function() {
+        setTimeout(function() {
+            window.unlockDownloads('windows');
+        }, 1000);
+    };
+
+    window.triggerApkDownload = function() {
+        setTimeout(function() {
+            window.unlockDownloads('apk');
+        }, 1000);
+    };
+
+    window.selectedModalPlatform = 'windows';
+    window.selectModalPlatform = function(platform) {
+        window.selectedModalPlatform = platform || 'windows';
+        const winCard = document.getElementById('modalWindowsSpecCard');
+        const apkCard = document.getElementById('modalApkSpecCard');
+        if (winCard && apkCard) {
+            if (platform === 'apk') {
+                winCard.style.background = 'rgba(255, 255, 255, 0.04)';
+                winCard.style.border = '1.5px solid rgba(255, 255, 255, 0.15)';
+                apkCard.style.background = 'rgba(0, 255, 157, 0.08)';
+                apkCard.style.border = '2px solid #00ff9d';
+            } else {
+                winCard.style.background = 'rgba(0, 255, 157, 0.08)';
+                winCard.style.border = '2px solid #00ff9d';
+                apkCard.style.background = 'rgba(255, 255, 255, 0.04)';
+                apkCard.style.border = '1.5px solid rgba(255, 255, 255, 0.15)';
+            }
+        }
+    };
+
+    window.openPayModal = function(e, platform) {
+        if (e && e.preventDefault) {
+            e.preventDefault();
+        }
+        if (e && e.stopPropagation) {
+            e.stopPropagation();
+        }
+        window.selectModalPlatform(platform || 'windows');
+        window.startPayTimer();
+        const isMobileDevice = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(navigator.userAgent);
+        const modal = document.getElementById('qrPaymentModal');
+        const container = document.getElementById('qrCodeContainer');
+
+        if (container && !container.hasChildNodes()) {
+            const upiUrl = 'upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access';
+            if (typeof QRCode !== 'undefined') {
+                try {
+                    new QRCode(container, {
+                        text: upiUrl,
+                        width: 220,
+                        height: 220,
+                        colorDark: '#000000',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                } catch(err) {
+                    container.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiUrl)}" alt="UPI QR Code" style="width:220px;height:220px;display:block;margin:0 auto;border-radius:8px;">`;
+                }
+            } else {
+                container.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(upiUrl)}" alt="UPI QR Code" style="width:220px;height:220px;display:block;margin:0 auto;border-radius:8px;">`;
+            }
+        }
+        
+        if (modal) {
+            modal.style.display = 'flex';
+        }
+
+        if (localStorage.getItem('bigshot_payment_completed') === 'true') {
+            const lockedBox = document.getElementById('lockedDownloadBox');
+            const unlockedBox = document.getElementById('unlockedDownloadBox');
+            if (lockedBox) lockedBox.style.display = 'none';
+            if (unlockedBox) unlockedBox.style.display = 'block';
+        }
+
+        window.startPayTimer();
+
+        if (isMobileDevice) {
+            setTimeout(() => {
+                window.location.href = 'upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access';
+            }, 500);
+        }
+        return false;
+    };
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // Attach click listener to all payment links
+        document.querySelectorAll('a[href^="upi://pay"], .pay-trigger, .upi-app-btn, #megaPayBtn, #heroPayBtn, #galleryPayBtn').forEach(btn => {
+            btn.addEventListener('click', window.openPayModal);
+        });
+        
+        const modal = document.getElementById('qrPaymentModal');
+        // Close modal on overlay click
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) modal.style.display = 'none';
+            });
+        }
+        
+        // Close on Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && modal) modal.style.display = 'none';
+        });
+    });
+    </script>
+
+
+
+    <!-- Consolidated Checkout Section -->
+    <section id="checkout-section" class="container" style="display: flex; flex-wrap: wrap; gap: 2rem; padding: 40px 0; justify-content: center; align-items: stretch;">
+        <div style="flex: 1; min-width: 280px; width: 100%;">
+            <div data-aos="fade-up">
+        <div class="container glass" style="padding: 20px; max-width: 1000px; margin: 0 auto; box-shadow: 0 0 40px rgba(0, 255, 157, 0.08); border-color: rgba(0, 255, 157, 0.2);">
+            <div class="badge" style="background: rgba(0, 255, 157, 0.1); color: var(--bull-green); border-color: var(--bull-green); animation: none; box-shadow: 0 0 15px rgba(0,255,157,0.2);">⚡ CHOOSE YOUR PLAN</div>
+            <h2 style="font-size: clamp(1.8rem, 5vw, 3rem); margin-bottom: 1rem;">உங்கள் சிக்னல் திட்டத்தைத் தேர்வு செய்யவும் (Choose Plan)</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 1rem;">Index-only or Full Access with 50+ Stocks — pick the plan that fits your trading style.</p>
+
+            
+    <div class="urgency-timer glass" style="text-align: center; margin-bottom: 2rem; padding: 15px; border-color: rgba(0,255,157,0.3); animation: pulse-border 2s infinite; width: 100%; box-sizing: border-box;">
+        <h4 style="color: var(--bull-green); margin-bottom: 5px; font-size: 1.2rem;">⚡ LIMITED SPOTS AVAILABLE — SECURE YOUR ACCESS NOW</h4>
+        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 6px; letter-spacing: 1px;">
+            Subscriptions are manually activated. Contact via WhatsApp after payment to confirm.
+        </div>
+    </div>
+
+            <div class="pricing-grid" style="display: flex; justify-content: center; max-width: 400px; margin: 3rem auto 0 auto;">
+
+                <!-- Plan 1: Index + Stocks — 12 Months -->
+                <div class="pricing-card glass popular" data-aos="fade-up" data-aos-delay="200" style="position: relative; overflow: hidden; width: 100%;">
+                    <div style="position: absolute; top: 20px; right: -35px; background: var(--bear-red); color: white; padding: 5px 40px; transform: rotate(45deg); font-size: 0.8rem; font-weight: 800; box-shadow: 0 0 20px rgba(255,0,0,0.5);">50% OFF</div>
+                    <div class="badge" style="margin-bottom: 1rem; font-size: 0.7rem; background: rgba(0,255,157,0.1); color: var(--bull-green);">Most Selected</div>
+                    <div class="duration">12 (Twelve) Months</div>
+                    <div class="price" style="display: flex; flex-direction: column; align-items: center; gap: 0.2rem;">
+                        <span style="text-decoration: line-through; font-size: 1.2rem; color: var(--text-secondary);">₹49,999</span>
+                        <span>₹19,999</span>
+                        <span style="font-size: 0.85rem; color: var(--bull-green); font-weight: 600;">≈ ₹1,666/month</span>
+                    </div>
+                    <ul>
+                        <li>✅ 1 Year Full Access</li>
+                        <li>✅ Both Index + Stocks Included</li>
+                        <li>✅ Works on Android & Desktop</li>
+                        <li>✅ Priority Support & Updates</li>
+                        <li>✅ Custom Signal Injection</li>
+                    </ul>
+                </div>
+
+            </div>
+
+            <div style="margin-top: 3rem; display: flex; gap: 1rem; justify-content: center;">
+                <a href="/access_terminal/" class="cta-button">ACCESS TERMINAL</a>
+                <a href="#checkout-section" class="secondary-button">ACTIVATE PRO ACCESS</a>
+            </div>
+        </div>
+    </div>
+        </div>
+        <div style="flex: 1; min-width: 280px; width: 100%;">
+            <div>
+        <div class="container">
+            <div class="badge">Secure Acquisition</div>
+            <h2 style="font-size: clamp(1.8rem, 5vw, 3rem); margin-bottom: 4rem; text-align: center;">இன்றே புரோ அணுகலைப் பெறுங்கள் (Get Pro Access)</h2>
+
+            <div class="payment-grid">
+                <div class="payment-method-card">
+                    <div class="app-icons" style="margin-bottom: 1rem;">
+                        <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&cu=INR" class="app-icon gpay" style="text-decoration: none;">GPay</a>
+                        <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&cu=INR" class="app-icon phonepe" style="text-decoration: none;">PhonePe</a>
+                        <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&cu=INR" class="app-icon bhim" style="text-decoration: none;">Paytm</a>
+                    </div>
+                    <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&cu=INR" class="cta-button" style="display: block; text-align: center; margin-bottom: 2rem; padding: 1rem; width: 100%; box-sizing: border-box; background: var(--bull-green); color: black; font-weight: 800; border-radius: 12px; text-decoration: none;">
+                        PAY NOW VIA UPI APP
+                    </a>
+                    <p style="text-align: center; color: var(--text-secondary); margin-bottom: 2rem;">Or transfer manually to the details below</p>
+
+                    <div class="bank-details">
+                        <div
+                            style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 15px;">
+                            <span style="color: var(--bull-green); font-weight: 800;">MS ENTERPRISES</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span>Account Number</span>
+                            <span style="display:flex; align-items:center; gap:8px;">510909010198366
+                                <button class="upi-copy-btn" onclick="copyToClip('510909010198366', this)">COPY</button>
+                            </span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span>IFSC Code</span>
+                            <span>CIUB0000550</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span>Phone / UPI</span>
+                            <span style="display:flex; align-items:center; gap:8px;">8122965050
+                                <button class="upi-copy-btn" onclick="copyToClip('online.secure.payment@upi', this)">COPY UPI</button>
+                            </span>
+                        </div>
+                        <!-- Desktop fallback for UPI -->
+                        <div id="desktop-upi-note" style="margin-top:12px; padding:10px; background:rgba(0,255,157,0.05); border:1px solid rgba(0,255,157,0.2); border-radius:10px; font-size:0.8rem; color:var(--text-secondary); display:none;">
+                            📱 On desktop? Open your UPI app, scan or enter UPI ID: <strong style="color:var(--bull-green);">online.secure.payment@upi</strong>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="checkout-steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-text">
+                            <h4>Transfer via App</h4>
+                            <p>Use GPay, PhonePe, or BHIM to transfer the subscription fee to the bank details or phone
+                                number provided.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-text">
+                            <h4>Send Screenshot</h4>
+                            <p>Take a screenshot of the successful transaction and share it with our support team on
+                                WhatsApp at <b>+91 8122965050</b>.</p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-text">
+                            <h4>Instant Activation</h4>
+                            <p>Once verified, your account will be upgraded to <b>PRO TERMINAL</b> status within
+                                minutes. You will receive an activation code.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+        </div>
+    </section>
+    
+<footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <img src="assets/logo_brand.png" alt="BIG SHOT" class="brand-logo">
+                    <p>The next generation of orderflow intelligence. Built for professional traders who demand
+                        sub-second
+                        execution and visual clarity.</p>
+                </div>
+                <div class="footer-links">
+                    <h4>Useful Links</h4>
+                    <ul>
+                        <li><a href="/access_terminal/">Access Terminal</a></li>
+                        <li><a href="#features">Features</a></li>
+                        <li><a href="#checkout-section">Activate Terminal</a></li>
+                        <li><a href="https://orderflowterminal.web.app/">Official Website</a></li>
+                        <li><a href="https://www.youtube.com/@orderflowapplication" target="_blank">YouTube Channel</a>
+                        </li>
+                        <li><a href="https://wa.me/918122965050">WhatsApp Support</a></li>
+                    </ul>
+                </div>
+                <div class="footer-social">
+                    <h4>Connect</h4>
+                    <div class="social-icons">
+                        <a href="https://t.me/Bigshot_trade" class="social-icon" target="_blank" aria-label="Telegram">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                vector-effect="non-scaling-stroke">
+                                <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </a>
+                        <a href="https://www.instagram.com/bigshot_trade/" class="social-icon" target="_blank"
+                            aria-label="Instagram">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                vector-effect="non-scaling-stroke">
+                                <rect x="2" y="2" width="20" height="20" rx="5" ry="5" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </a>
+                        <a href="https://www.facebook.com/orderflowjeeva" class="social-icon" target="_blank"
+                            aria-label="Facebook">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                vector-effect="non-scaling-stroke">
+                                <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"
+                                    stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </a>
+                        <a href="https://x.com/bigshot_trade" class="social-icon" target="_blank"
+                            aria-label="X (Twitter)">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                vector-effect="non-scaling-stroke">
+                                <path d="M4 4l11.733 16h4.267l-11.733 -16z" />
+                                <path d="M4 20l6.768 -6.768m2.46 -2.46l6.772 -6.772" />
+                            </svg>
+                        </a>
+                        <a href="https://www.youtube.com/@orderflowapplication" class="social-icon" target="_blank"
+                            aria-label="YouTube">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                vector-effect="non-scaling-stroke">
+                                <path
+                                    d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.42a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.42 8.6.42 8.6.42s6.88 0 8.6-.42a2.78 2.78 0 0 0 1.94-2 29 29 0 0 0 .46-5.25 29 29 0 0 0-.46-5.33z"
+                                    stroke-linecap="round" stroke-linejoin="round" />
+                                <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02" stroke-linecap="round"
+                                    stroke-linejoin="round" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2026 BIG SHOT Orderflow Terminal. All Rights Reserved. Contact: +91 81229 65050</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Interactive WhatsApp Floating Live Chat Widget -->
+    <div class="whatsapp-chat-container" style="position: fixed; bottom: 55px; right: 25px; z-index: 99999; display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
+        <!-- Chat Bubble Tooltip Popup -->
+        <div id="waChatTooltip" class="wa-chat-tooltip" style="background: rgba(10, 15, 20, 0.95); backdrop-filter: blur(12px); border: 1.5px solid rgba(37, 211, 102, 0.6); border-radius: 16px; padding: 12px 18px; color: #fff; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(37, 211, 102, 0.25); display: flex; align-items: center; gap: 12px; animation: float-wa 3s ease-in-out infinite; max-width: 290px; position: relative;">
+            <div style="position: relative; flex-shrink: 0;">
+                <img src="assets/chatbot_avatar.png" style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #25D366; object-fit: cover;" alt="Support Avatar">
+                <span style="position: absolute; bottom: 0; right: 0; width: 10px; height: 10px; background: #00ff9d; border-radius: 50%; border: 2px solid #000; box-shadow: 0 0 8px #00ff9d;"></span>
+            </div>
+            <div>
+                <div style="font-size: 0.85rem; font-weight: 800; color: #00ff9d; margin-bottom: 2px; display: flex; align-items: center; gap: 4px;">
+                    <span>Live Support</span>
+                    <span style="font-size: 0.7rem; color: rgba(255,255,255,0.6); font-weight: 500;">• Online</span>
+                </div>
+                <div style="font-size: 0.8rem; color: #e0e0e0; font-weight: 600; line-height: 1.25;">
+                    Hi! Need help with Orderflow Terminal? Chat live!
+                </div>
+            </div>
+            <button onclick="document.getElementById('waChatTooltip').style.display='none'" style="background: none; border: none; color: rgba(255,255,255,0.4); font-size: 1.2rem; cursor: pointer; padding: 0 0 0 4px; line-height: 1;" title="Close">&times;</button>
+        </div>
+
+        <!-- Big WhatsApp Floating Button -->
+        <a href="https://wa.me/918122965050?text=Hi,%20I'm%20interested%20in%20BIG%20SHOT%20Orderflow%20Terminal" target="_blank" class="whatsapp-widget-big" aria-label="Chat on WhatsApp" style="background: linear-gradient(135deg, #25D366 0%, #128C7E 100%); color: #ffffff; padding: 14px 28px; border-radius: 50px; border: 2px solid rgba(255,255,255,0.4); text-decoration: none; font-weight: 900; font-size: 1.05rem; letter-spacing: 0.5px; display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(37, 211, 102, 0.5), 0 0 25px rgba(37, 211, 102, 0.3); transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); position: relative;">
+            <svg viewBox="0 0 448 512" width="30" height="30" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); flex-shrink: 0;">
+                <path fill="currentColor" d="M380.9 97.1C339 55.1 283.2 32 223.9 32c-122.4 0-222 99.6-222 222 0 39.1 10.2 77.3 29.6 111L0 480l117.7-30.9c32.4 17.7 68.9 27 106.1 27h.1c122.3 0 224.1-99.6 224.1-222 0-59.3-25.2-115-67.1-157zm-157 341.6c-33.2 0-65.7-8.9-94-25.7l-6.7-4-69.8 18.3 18.7-68.1-4.4-7c-18.5-29.4-28.2-63.3-28.2-98.2 0-101.7 82.8-184.5 184.6-184.5 49.3 0 95.6 19.2 130.4 54.1 34.8 34.9 56.2 81.2 56.1 130.5 0 101.8-84.9 184.6-186.6 184.6zm101.2-138.2c-5.5-2.8-32.8-16.2-37.9-18-5.1-1.9-8.8-2.8-12.5 2.8-3.7 5.6-14.3 18-17.6 21.8-3.2 3.7-6.5 4.2-12 1.4-5.5-2.8-23.2-8.5-44.2-27.2-16.4-14.6-27.4-32.7-30.6-38.1-3.2-5.5-.3-8.4 2.5-11.1 2.4-2.4 5.5-6.5 8.3-9.7 2.8-3.3 3.7-5.6 5.6-9.3 1.9-3.7.9-6.9-.5-9.7-1.4-2.8-12.5-30.1-17.1-41.2-4.5-10.8-9.1-9.3-12.5-9.5-3.2-.2-6.9-.2-10.6-.2-3.7 0-9.7 1.4-14.8 6.9-5.1 5.6-19.4 19-19.4 46.3 0 27.3 19.9 53.7 22.6 57.4 2.8 3.7 39.1 59.7 94.8 83.8 35.2 15.2 49 16.5 66.6 13.9 10.7-1.6 32.8-13.4 37.4-26.4 4.6-13 4.6-24.1 3.2-26.4-1.3-2.5-5-3.9-10.5-6.6z" />
+            </svg>
+            <span>CHAT ON WHATSAPP</span>
+            <span style="position: absolute; top: -5px; right: -5px; background: #ff3e3e; color: #fff; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 900; border: 2px solid #000; box-shadow: 0 0 10px rgba(255, 62, 62, 0.8);">1</span>
+        </a>
+    </div>
+
+
+
+
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script>
+        AOS.init({
+            duration: 1000,
+            once: true,
+            offset: 100,
+            easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
+        });
+
+        // Simplified Terminal Access: Direct redirect to bypass double-login
+        window.handleTerminalAccess = function() {
+            window.location.href = "/access_terminal/";
+        };
+
+        // Standard event listeners
+        document.querySelectorAll('.terminal-launch, .floating-cta').forEach(btn => {
+            btn.removeAttribute('href'); // Maintain JS handling for consistency across all buttons
+            btn.style.cursor = 'pointer';
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.handleTerminalAccess();
+            });
+        });
+    </script>
+
+    <div class="aurora-cursor-glow"></div>
+    <div class="floating-terminal-bar">
+        <div class="terminal-status">
+            <span class="live-dot"></span>
+            <span>WEB TERMINAL: READY</span>
+        </div>
+    </div>
+
+    <script>
+        // Visual enhancement for the floating bar on scroll
+        window.addEventListener('scroll', () => {
+            const bar = document.querySelector('.floating-terminal-bar');
+            if (bar) {
+                if (window.scrollY > 300) {
+                    bar.style.opacity = "1";
+                    bar.style.pointerEvents = "all";
+                } else {
+                    bar.style.opacity = "0.8";
+                }
+            }
+        });
+
+        // Interactive Aurora Cursor Glow
+        const cursorGlow = document.querySelector('.aurora-cursor-glow');
+        if (cursorGlow) {
+            document.addEventListener('mousemove', (e) => {
+                cursorGlow.style.left = e.clientX + 'px';
+                cursorGlow.style.top = e.clientY + 'px';
+            });
+        }
+    </script>
+    
+    </div>
+
+    
+
+
+    <!-- QR Payment & Immediate Software Download Modal -->
+    <div id="qrPaymentModal" class="qr-modal-overlay" style="display:none;">
+        <div class="qr-modal-card" style="max-width: 580px; width: 95%;">
+            <button class="qr-close-btn" onclick="document.getElementById('qrPaymentModal').style.display='none'">&times;</button>
+
+            <div class="qr-modal-header">
+                <div class="qr-modal-badge">⚡ OFFICIAL SOFTWARE RELEASES</div>
+                <h3 class="qr-modal-title">Download BIG SHOT Pro Software</h3>
+                <p class="qr-modal-subtitle">Review file specifications below. Complete payment via UPI QR code at the bottom to unlock instant download.</p>
+            </div>
+
+            <!-- STEP 1: Platform & File Specification Section -->
+            <div style="margin: 15px 0; display: flex; flex-direction: column; gap: 10px;">
+                <div style="font-size: 0.82rem; font-weight: 800; color: #00ff9d; letter-spacing: 1px; text-align: left; text-transform: uppercase;">
+                    📦 SELECT PLATFORM & FILE SPECIFICATIONS:
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <!-- Windows File Box -->
+                    <div id="modalWindowsSpecCard" onclick="selectModalPlatform('windows');" style="background: rgba(0, 255, 157, 0.08); border: 2px solid #00ff9d; border-radius: 12px; padding: 12px; text-align: left; cursor: pointer; position: relative;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                            <span style="font-weight: 900; font-size: 0.9rem; color: #ffffff;">💻 Windows Setup</span>
+                            <span style="background: #00ff9d; color: #000; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 4px;">.EXE</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-bottom: 3px;">
+                            📁 <strong>File Name:</strong> <span style="color: #00ff9d; word-break: break-all;">BIG_SHOT_Pro_v2.0.exe</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-bottom: 3px;">
+                            ⚖️ <strong>File Size:</strong> <span style="color: #ffffff; font-weight: 800;">142 MB</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">
+                            🖥️ <strong>OS:</strong> Windows 10 / 11 (64-bit)
+                        </div>
+                    </div>
+
+                    <!-- Android File Box -->
+                    <div id="modalApkSpecCard" onclick="selectModalPlatform('apk');" style="background: rgba(255, 255, 255, 0.04); border: 1.5px solid rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 12px; text-align: left; cursor: pointer; position: relative;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                            <span style="font-weight: 900; font-size: 0.9rem; color: #ffffff;">📱 Android App</span>
+                            <span style="background: #2DA94F; color: #fff; font-size: 0.65rem; font-weight: 900; padding: 2px 6px; border-radius: 4px;">.APK</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-bottom: 3px;">
+                            📁 <strong>File Name:</strong> <span style="color: #00ff9d; word-break: break-all;">BIG_SHOT_v2.0.apk</span>
+                        </div>
+                        <div style="font-size: 0.75rem; color: rgba(255,255,255,0.7); margin-bottom: 3px;">
+                            ⚖️ <strong>File Size:</strong> <span style="color: #ffffff; font-weight: 800;">65.1 MB</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: rgba(255,255,255,0.5);">
+                            📱 <strong>OS:</strong> Android 8.0 or higher
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- STEP 2: Payment & QR Code Section ("at last only show qr code to make payment") -->
+            <div style="margin-top: 15px; border-top: 1px dashed rgba(255,255,255,0.15); padding-top: 15px;">
+                <div style="font-size: 0.82rem; font-weight: 800; color: #ffcc00; letter-spacing: 1px; text-align: center; text-transform: uppercase; margin-bottom: 8px;">
+                    💳 STEP 2: SCAN QR CODE BELOW TO COMPLETE PAYMENT & UNLOCK DOWNLOAD
+                </div>
+
+                <!-- 5-Minute Payment Session Timer -->
+                <div style="background: rgba(255, 204, 0, 0.1); border: 1px solid rgba(255, 204, 0, 0.35); border-radius: 12px; padding: 8px 12px; margin: 0 auto 12px; text-align: center; color: #ffcc00; font-weight: 800; font-size: 0.85rem; display: flex; align-items: center; justify-content: center; gap: 8px; max-width: 320px;">
+                    <span>⏱️ Session Timer (Complete in 5 min):</span>
+                    <span id="modalPaymentTimer" style="font-family: monospace; font-size: 1.1rem; color: #fff; background: rgba(0,0,0,0.4); padding: 2px 8px; border-radius: 6px;">05:00</span>
+                </div>
+
+                <!-- QR Code Box -->
+                <div class="qr-code-wrapper">
+                    <div class="qr-code-frame">
+                        <div class="qr-corner tl"></div>
+                        <div class="qr-corner tr"></div>
+                        <div class="qr-corner bl"></div>
+                        <div class="qr-corner br"></div>
+                        <div class="qr-scan-line"></div>
+                        <div id="qrCodeContainer"></div>
+                    </div>
+                </div>
+
+                <div class="qr-payment-details">
+                    <div class="qr-amount-display">
+                        <span class="qr-amount-label">Amount Payable:</span>
+                        <span class="qr-amount-value">₹19,999</span>
+                    </div>
+                    <div class="qr-merchant-info">
+                        <span>Payee: <strong>MS ENTERPRISES</strong></span>
+                        <span class="qr-upi-id">online.secure.payment@upi</span>
+                    </div>
+                </div>
+
+                <!-- Fast Payment App Deep Links -->
+                <div class="qr-apps-row" style="margin-bottom: 12px; display: flex; justify-content: center; gap: 8px;">
+                    <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="triggerWindowsDownload();" class="upi-app-btn" style="--app-color:#2DA94F; font-size:0.8rem; padding:8px 14px; text-decoration: none;">
+                        <span class="upi-app-icon">💳</span> GPay
+                    </a>
+                    <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="triggerWindowsDownload();" class="upi-app-btn" style="--app-color:#5F259F; font-size:0.8rem; padding:8px 14px; text-decoration: none;">
+                        <span class="upi-app-icon">📲</span> PhonePe
+                    </a>
+                    <a href="upi://pay?pa=online.secure.payment@upi&pn=MS%20ENTERPRISES&am=19999&cu=INR&tn=BIG%20SHOT%20Pro%20Access" onclick="triggerWindowsDownload();" class="upi-app-btn" style="--app-color:#00B9F5; font-size:0.8rem; padding:8px 14px; text-decoration: none;">
+                        <span class="upi-app-icon">💰</span> Paytm
+                    </a>
+                </div>
+
+                <div class="qr-copy-section">
+                    <div style="font-size:0.75rem; color:rgba(255,255,255,0.5);">UPI ID:</div>
+                    <div class="qr-copy-row">
+                        <span class="qr-upi-code">online.secure.payment@upi</span>
+                        <button class="qr-copy-btn" onclick="copyToClip('online.secure.payment@upi', this)">COPY</button>
+                    </div>
+                </div>
+
+                <!-- Payment-Gated Software Download Box -->
+                <div id="lockedDownloadBox" style="background: rgba(255, 255, 255, 0.03); border: 2px dashed rgba(255, 255, 255, 0.2); border-radius: 16px; padding: 16px; text-align: center; margin-top: 15px;">
+                    <div style="color: #ffaa00; font-weight: 900; font-size: 0.95rem; margin-bottom: 4px;">
+                        🔒 DOWNLOAD LOCKED — PAYMENT REQUIRED
+                    </div>
+                    <p style="color: rgba(255,255,255,0.7); font-size: 0.8rem; margin: 0 0 12px; line-height: 1.3;">
+                        After scanning QR code or paying via UPI app, click below to start your software download:
+                    </p>
+                    <button onclick="unlockDownloads(selectedModalPlatform);" class="mega-pay-button" style="background: linear-gradient(135deg, #00ff9d, #00b359); color: #000; padding: 12px 20px; font-weight: 900; font-size: 0.9rem; border-radius: 30px; border: none; cursor: pointer; width: 100%; box-shadow: 0 0 15px rgba(0,255,157,0.4);">
+                        🔓 I HAVE PAID — UNLOCK & DOWNLOAD FILE NOW
+                    </button>
+                </div>
+
+                <div id="unlockedDownloadBox" style="display:none; background: linear-gradient(135deg, rgba(0, 255, 157, 0.15), rgba(0, 179, 89, 0.1)); border: 2px solid #00ff9d; border-radius: 16px; padding: 16px; text-align: center; margin-top: 15px; box-shadow: 0 0 20px rgba(0,255,157,0.25);">
+                    <div style="color: #00ff9d; font-weight: 900; font-size: 1rem; margin-bottom: 8px;">
+                        ⚡ PAYMENT COMPLETED — DOWNLOAD PRO SOFTWARE
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        <!-- Windows Download Button -->
+                        <a id="instantWindowsBtn" href="https://drive.google.com/uc?export=download&id=1RTmctGWA-C8HsY7azW0eKmlsVZG9uS2J" target="_blank" download class="mega-pay-button" style="background: #00ff9d; color: #000; text-decoration: none; padding: 12px 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 900; font-size: 0.95rem; border-radius: 30px; box-shadow: 0 0 20px rgba(0,255,157,0.5); width: 100%; box-sizing: border-box;">
+                            💻 DOWNLOAD WINDOWS RELEASE (.EXE / 142 MB)
+                        </a>
+                        <!-- Android Download Button -->
+                        <a id="instantApkBtn" href="https://drive.google.com/uc?export=download&id=1jGF0gimdOg3csoorMacxPCBdGxHwue19" target="_blank" download class="mega-pay-button" style="background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.3); text-decoration: none; padding: 10px 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 800; font-size: 0.88rem; border-radius: 30px; width: 100%; box-sizing: border-box;">
+                            📱 DOWNLOAD ANDROID APK (.APK / 65.1 MB)
+                        </a>
+                    </div>
+                </div>
+
+                <div class="qr-whatsapp-note" style="margin-top: 12px;">
+                    <p>Need support or fast activation? Contact on WhatsApp:</p>
+                    <a href="https://wa.me/918122965050?text=Hi,%20I've%20made%20the%20payment%20and%20downloaded%20the%20file" target="_blank" class="qr-whatsapp-btn">
+                        <span>💬 WhatsApp Support (+91 81229 65050)</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Demo Modal -->
+    <div id="demoModal" class="modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:9999; justify-content:center; align-items:center; flex-direction:column;">
+        <div class="glass" style="width:90%; max-width:800px; padding: 30px 20px; height:auto; min-height:60vh; position:relative; overflow:hidden; border:1px solid var(--bull-green); display:flex; flex-direction:column; align-items:center; justify-content:center; background: #0a0f14; border-radius: 16px;">
+            <h2 style="color:var(--bull-green); margin-bottom:15px; animation:blink 1s infinite;">● LIVE FEED ACTIVE</h2>
+            
+            <!-- Instrument Switcher inside Demo -->
+            <div style="margin-bottom: 25px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; max-width: 90%;">
+                <button onclick="switchDemoInstrument('NIFTY50')" class="demo-tab active" id="tab-NIFTY50" style="background: rgba(0, 255, 204, 0.2); border: 1px solid var(--bull-green); color: white; padding: 6px 14px; border-radius: 20px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 0.85rem;">NIFTY 50</button>
+                <button onclick="switchDemoInstrument('TATAMOTORS')" class="demo-tab" id="tab-TATAMOTORS" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 6px 14px; border-radius: 20px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 0.85rem;">TATA MOTORS</button>
+                <button onclick="switchDemoInstrument('RELIANCE')" class="demo-tab" id="tab-RELIANCE" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 6px 14px; border-radius: 20px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 0.85rem;">RELIANCE</button>
+                <button onclick="switchDemoInstrument('SUNPHARMA')" class="demo-tab" id="tab-SUNPHARMA" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 6px 14px; border-radius: 20px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 0.85rem;">SUN PHARMA</button>
+                <button onclick="switchDemoInstrument('TCS')" class="demo-tab" id="tab-TCS" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 6px 14px; border-radius: 20px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 0.85rem;">TCS</button>
+                <button onclick="switchDemoInstrument('TITAN')" class="demo-tab" id="tab-TITAN" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #aaa; padding: 6px 14px; border-radius: 20px; font-weight: 700; cursor: pointer; transition: 0.3s; font-size: 0.85rem;">TITAN</button>
+            </div>
+
+            <div id="demo-feed-content" style="font-family:monospace; font-size: clamp(1.1rem, 4vw, 1.6rem); color:#fff; text-align: center; line-height: 1.8; min-height: 140px;">
+                Processing TBT Level 3 Data for <span id="demo-symbol" style="color:var(--bull-green); font-weight:bold;">NIFTY 50</span>... <br>
+                <span id="demo-buy-delta" style="color:var(--bull-green)">Buy Delta: +4,500</span> <br>
+                <span id="demo-sell-delta" style="color:var(--bear-red)">Sell Delta: -1,200</span> <br>
+                <span id="demo-signal" style="color:#ffcc00; font-size: 1.1rem; font-weight: 800;">Signal: STRONG BULLISH ACCUMULATION</span>
+            </div>
+            
+            <div id="demo-lock" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); flex-direction:column; justify-content:center; align-items:center; backdrop-filter:blur(6px); padding: 20px; text-align: center; z-index: 10;">
+                <h3 style="color:var(--bear-red); font-size: clamp(1.8rem, 5vw, 2.3rem); margin-bottom:12px;">🔒 TRIAL LIMIT REACHED</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 25px; max-width: 80%;">Purchase Pro to unlock live execution and signals for Indices and all Nifty 50 Stock Options.</p>
+                <a href="#checkout-section" onclick="closeDemo()" class="cta-button" style="margin-top:10px;">PURCHASE PRO</a>
+            </div>
+            
+            <button onclick="closeDemo()" style="position:absolute; top:15px; right:15px; background:none; border:none; color:white; font-size:1.8rem; cursor:pointer;">✕</button>
+        </div>
+    </div>
+    <script>
+        const demoData = {
+            'NIFTY50': { name: 'NIFTY 50', buy: '+4,500', sell: '-1,200', signal: 'STRONG BULLISH ACCUMULATION', signalColor: 'var(--bull-green)' },
+            'TATAMOTORS': { name: 'TATA MOTORS', buy: '+1,250', sell: '-400', signal: 'BULLISH MOMENTUM', signalColor: 'var(--bull-green)' },
+            'RELIANCE': { name: 'RELIANCE', buy: '+800', sell: '-1,800', signal: 'BEARISH DISTRIBUTION', signalColor: 'var(--bear-red)' },
+            'SUNPHARMA': { name: 'SUN PHARMA', buy: '+600', sell: '-550', signal: 'NEUTRAL CONSOLIDATION', signalColor: '#aaa' },
+            'TCS': { name: 'TCS', buy: '+1,500', sell: '-300', signal: 'STRONG BUYING PRESSURE', signalColor: 'var(--bull-green)' },
+            'TITAN': { name: 'TITAN', buy: '+950', sell: '-900', signal: 'SQUEEZE ALERT', signalColor: '#ffcc00' }
+        };
+
+        function switchDemoInstrument(symbol) {
+            const data = demoData[symbol];
+            if (!data) return;
+
+            document.getElementById('demo-symbol').innerText = data.name;
+            document.getElementById('demo-buy-delta').innerText = 'Buy Delta: ' + data.buy;
+            document.getElementById('demo-sell-delta').innerText = 'Sell Delta: ' + data.sell;
+            
+            const sigEl = document.getElementById('demo-signal');
+            sigEl.innerText = 'Signal: ' + data.signal;
+            sigEl.style.color = data.signalColor;
+
+            document.querySelectorAll('.demo-tab').forEach(tab => {
+                tab.style.background = 'rgba(255,255,255,0.05)';
+                tab.style.borderColor = 'rgba(255,255,255,0.1)';
+                tab.style.color = '#aaa';
+            });
+            const activeTab = document.getElementById('tab-' + symbol);
+            if (activeTab) {
+                activeTab.style.background = 'rgba(0, 255, 204, 0.2)';
+                activeTab.style.borderColor = 'var(--bull-green)';
+                activeTab.style.color = 'white';
+            }
+        }
+
+        let demoTimeout;
+        function openDemo() {
+            document.getElementById('demoModal').style.display = 'flex';
+            document.getElementById('demo-lock').style.display = 'none';
+            switchDemoInstrument('NIFTY50');
+            clearTimeout(demoTimeout);
+            demoTimeout = setTimeout(() => {
+                document.getElementById('demo-lock').style.display = 'flex';
+            }, 8000);
+        }
+        function closeDemo() {
+            document.getElementById('demoModal').style.display = 'none';
+            clearTimeout(demoTimeout);
+        }
+    </script>
+
+
+    <section id="faq-section" class="container" style="padding: 40px 20px; max-width: 800px; margin: 0 auto;">
+        <h2 style="text-align: center; margin-bottom: 2rem;">Frequently Asked Questions</h2>
+        
+        <details class="glass" style="padding: 15px; margin-bottom: 10px; cursor: pointer;">
+            <summary style="font-weight: bold; font-size: 1.1rem; outline: none; display: list-item;">Do I need a TrueData API?</summary>
+            <p style="margin-top: 10px; color: var(--text-secondary);">No! BIG SHOT has a completely zero-dependency architecture. Our data feed is built-in.</p>
+        </details>
+        
+        <details class="glass" style="padding: 15px; margin-bottom: 10px; cursor: pointer;">
+            <summary style="font-weight: bold; font-size: 1.1rem; outline: none; display: list-item;">Does this work on Mobile and PC?</summary>
+            <p style="margin-top: 10px; color: var(--text-secondary);">Yes. Our Next-Gen Web Terminal runs smoothly on Desktop Browsers, iOS Safari, and Android Chrome.</p>
+        </details>
+        
+        <details class="glass" style="padding: 15px; margin-bottom: 10px; cursor: pointer;">
+            <summary style="font-weight: bold; font-size: 1.1rem; outline: none; display: list-item;">Do I need NinjaTrader?</summary>
+            <p style="margin-top: 10px; color: var(--text-secondary);">Absolutely not. BIG SHOT is a standalone web application replacing complex desktop software.</p>
+        </details>
+        
+        <details class="glass" style="padding: 15px; margin-bottom: 10px; cursor: pointer;">
+            <summary style="font-weight: bold; font-size: 1.1rem; outline: none; display: list-item;">How fast is the data feed?</summary>
+            <p style="margin-top: 10px; color: var(--text-secondary);">We process Tick-by-Tick (TBT) Level 3 Exchange Data, ensuring zero-lag institutional latency.</p>
+        </details>
+    </section>
+
+
+<!-- TradingView Widget BEGIN -->
+<div class="tradingview-widget-container" style="position: fixed; bottom: 0; width: 100%; z-index: 1000; left: 0; border-top: 1px solid rgba(255,255,255,0.1);">
+  <div class="tradingview-widget-container__widget"></div>
+  <script type="text/javascript" src="https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js" async>
+  {
+    "symbols": [
+      { "proName": "BSE:SENSEX", "title": "SENSEX" },
+      { "proName": "NSE:NIFTY", "title": "NIFTY 50" },
+      { "proName": "NSE:BANKNIFTY", "title": "BANKNIFTY" },
+      { "proName": "NSE:RELIANCE", "title": "RELIANCE" },
+      { "proName": "NSE:TATAMOTORS", "title": "TATA MOTORS" },
+      { "proName": "NSE:SUNPHARMA", "title": "SUN PHARMA" },
+      { "proName": "NSE:TCS", "title": "TCS" },
+      { "proName": "NSE:TITAN", "title": "TITAN" },
+      { "proName": "NSE:HDFCBANK", "title": "HDFC BANK" },
+      { "proName": "NSE:INFY", "title": "INFOSYS" }
+    ],
+    "showSymbolLogo": true,
+    "isTransparent": true,
+    "displayMode": "adaptive",
+    "colorTheme": "dark",
+    "locale": "in"
+  }
+  </script>
+</div>
+<!-- TradingView Widget END -->
+
+
+
+
+
+
+</body>
+
+<script>
+/* ============================================================
+   PREMIUM JS ENGINE — BIG SHOT Orderflow Marketing Site
+   Added July 2026
+   ============================================================ */
+
+// ── 1. REAL COUNTDOWN TIMER (24h, localStorage-persisted) ──
+(function() {
+    const DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+    const key = 'bigshot_sale_end';
+    let endTime = parseInt(localStorage.getItem(key));
+    if (!endTime || endTime < Date.now()) {
+        endTime = Date.now() + DURATION_MS;
+        localStorage.setItem(key, endTime);
+    }
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function tick() {
+        const el = document.getElementById('countdown');
+        if (!el) return;
+        const diff = Math.max(0, endTime - Date.now());
+        if (diff === 0) {
+            // Reset for next 24h
+            endTime = Date.now() + DURATION_MS;
+            localStorage.setItem(key, endTime);
+        }
+        const h = Math.floor(diff / 3600000);
+        const m = Math.floor((diff % 3600000) / 60000);
+        const s = Math.floor((diff % 60000) / 1000);
+        el.textContent = pad(h) + ':' + pad(m) + ':' + pad(s);
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
+
+// ── 2. LIVE USER COUNTER (natural fluctuation) ──
+(function() {
+    const el = document.getElementById('live-user-count');
+    if (!el) return;
+    let base = 230 + Math.floor(Math.random() * 40);
+    el.textContent = base;
+    setInterval(() => {
+        // Drift ±3 every 4s for organic feel
+        const delta = Math.floor(Math.random() * 7) - 3;
+        base = Math.max(180, Math.min(350, base + delta));
+        el.textContent = base;
+    }, 4000);
+})();
+
+// ── 3. STICKY URGENCY BAR ──
+(function() {
+    const bar = document.getElementById('sticky-urgency');
+    const seatsEl = document.getElementById('urgency-seats');
+    if (!bar) return;
+    // Fluctuate seats count
+    let seats = 12 + Math.floor(Math.random() * 8);
+    if (seatsEl) seatsEl.textContent = seats + ' spots';
+    // Show on scroll > 400px
+    window.addEventListener('scroll', () => {
+        if (window.scrollY > 400) bar.classList.add('visible');
+        else bar.classList.remove('visible');
+    }, { passive: true });
+    // Decrease seats every ~90s
+    setInterval(() => {
+        if (seats > 4) {
+            seats--;
+            if (seatsEl) seatsEl.textContent = seats + ' spots';
+        }
+    }, 90000);
+})();
+
+// ── 4. UPI COPY TO CLIPBOARD + DESKTOP FALLBACK ──
+window.copyToClip = function(text, btn) {
+    navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = '✓ COPIED!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = btn.textContent.includes('UPI') ? 'COPY UPI' : 'COPY';
+            btn.classList.remove('copied');
+        }, 2000);
+    }).catch(() => {
+        // Fallback: select text
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        btn.textContent = '✓ COPIED!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = 'COPY'; btn.classList.remove('copied'); }, 2000);
+    });
+};
+
+// Show desktop UPI note on non-mobile
+(function() {
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const note = document.getElementById('desktop-upi-note');
+    if (note && !isMobile) note.style.display = 'block';
+})();
+
+// ── 5. FLOATING TERMINAL BAR — click goes to terminal ──
+(function() {
+    const bar = document.querySelector('.floating-terminal-bar');
+    if (bar) {
+        bar.addEventListener('click', () => { window.location.href = '/'; });
+    }
+})();
+
+// ── 6. MOUSE PARALLAX on hero logo ──
+(function() {
+    const logo = document.querySelector('.hero > .container > img');
+    if (!logo) return;
+    document.addEventListener('mousemove', (e) => {
+        const cx = window.innerWidth / 2, cy = window.innerHeight / 2;
+        const dx = (e.clientX - cx) / cx, dy = (e.clientY - cy) / cy;
+        logo.style.transform = `rotateY(${dx * 8}deg) rotateX(${-dy * 8}deg) scale(1.03)`;
+    });
+})();
+</script>
+</html>

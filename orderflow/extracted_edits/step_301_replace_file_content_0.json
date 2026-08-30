@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Add _recentSearches state variable to _ChartScreenState.\"",
+  "EndLine": "63",
+  "Instruction": "\"Add recent searches variable.\"",
+  "ReplacementContent": "\"  String _voiceRecognizedWords = '';\\n  List<String> _recentSearches = [];\"",
+  "StartLine": "62",
+  "TargetContent": "\"  String _voiceRecognizedWords = '';\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Adding _recentSearches to chart_screen.dart state\"",
+  "toolSummary": "\"Edit chart_screen.dart\""
+}

@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Refactor chart key construction to use string interpolation for clean styling.\"",
+  "EndLine": "2337",
+  "Instruction": "\"Change the string concatenation to standard interpolation in ValueKey.\"",
+  "ReplacementContent": "\"    SfCartesianChart(\\n            key: ValueKey('chart_${ref.read(selectedInstrumentProvider)}${_autoScroll ? '_${candles.length}' : ''}'),\\n            margin: const EdgeInsets.fromLTRB(8, 12, 0, 35),\"",
+  "StartLine": "2335",
+  "TargetContent": "\"    SfCartesianChart(\\n            key: ValueKey('chart_${ref.read(selectedInstrumentProvider)}' + (_autoScroll ? '_${candles.length}' : '')),\\n            margin: const EdgeInsets.fromLTRB(8, 12, 0, 35),\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Improving string interpolation in chart key\"",
+  "toolSummary": "\"Replace file content\""
+}

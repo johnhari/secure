@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Remove redundant manual Y-axis range calculation in onActualRangeChanged to prevent layout loops and blank charts. Rely instead on Syncfusion's built-in anchorRangeToVisiblePoints property.\"",
+  "EndLine": "2361",
+  "Instruction": "\"Remove the primaryXAxis check and _recalculateYRangeForVisibleX call from onActualRangeChanged.\"",
+  "ReplacementContent": "\"            // Sync with axis state changes\\n            onActualRangeChanged: (ActualRangeChangedArgs args) {\\n              if (args.axisName == 'primaryYAxis') {\\n                 _autoYMin = (args.visibleMin as num?)?.toDouble();\\n                 _autoYMax = (args.visibleMax as num?)?.toDouble();\\n              }\\n            },\"",
+  "StartLine": "2348",
+  "TargetContent": "\"            // Sync with axis state changes\\n            onActualRangeChanged: (ActualRangeChangedArgs args) {\\n              if (args.axisName == 'primaryYAxis') {\\n                 _autoYMin = (args.visibleMin as num?)?.toDouble();\\n                 _autoYMax = (args.visibleMax as num?)?.toDouble();\\n              } else if (args.axisName == 'primaryXAxis') {\\n                final xMin = (args.visibleMin as num?)?.toDouble();\\n                final xMax = (args.visibleMax as num?)?.toDouble();\\n                if (xMin != null && xMax != null) {\\n                  _recalculateYRangeForVisibleX(xMin, xMax, candles);\\n                }\\n              }\\n            },\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Removing manual Y range calculation\"",
+  "toolSummary": "\"Fix chart range rendering\""
+}

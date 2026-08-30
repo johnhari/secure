@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Reset zoom level, pan position, and enable auto-scroll when selected instrument changes so the new chart auto-zooms to the last 15 candles.\"",
+  "EndLine": "1046",
+  "Instruction": "\"Add setState to reset autoScroll and hasUserZoomed, and call zoomPanBehavior.reset when selectedInstrumentProvider triggers.\"",
+  "ReplacementContent": "\"    // Re-setup listener if instrument changes\\n    ref.listen(selectedInstrumentProvider, (previous, next) {\\n      if (previous != next) {\\n        _alreadyAlertedCandles.clear();\\n        _lastKnownCandleCount = 0;\\n        _isManualYScale = false;\\n        _yVisibleMin = null;\\n        _yVisibleMax = null;\\n        _autoYMin = null;\\n        _autoYMax = null;\\n        _animatedCloseNotifier.value = 0.0;\\n        setState(() {\\n          _autoScroll = true;\\n          _hasUserZoomed = false;\\n        });\\n        _zoomPanBehavior.reset();\\n        _setupOrderflowListener();\\n        _setupGhostOrdersListener();\\n      }\\n    });\"",
+  "StartLine": "1032",
+  "TargetContent": "\"    // Re-setup listener if instrument changes\\n    ref.listen(selectedInstrumentProvider, (previous, next) {\\n      if (previous != next) {\\n        _alreadyAlertedCandles.clear();\\n        _lastKnownCandleCount = 0;\\n        _isManualYScale = false;\\n        _yVisibleMin = null;\\n        _yVisibleMax = null;\\n        _autoYMin = null;\\n        _autoYMax = null;\\n        _animatedCloseNotifier.value = 0.0;\\n        _setupOrderflowListener();\\n        _setupGhostOrdersListener();\\n      }\\n    });\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Resetting chart zoom on instrument change\"",
+  "toolSummary": "\"Replace file content\""
+}

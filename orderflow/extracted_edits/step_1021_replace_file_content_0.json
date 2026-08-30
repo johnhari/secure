@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Add _showTotalProfile state variable to _ChartScreenState.\"",
+  "EndLine": "70",
+  "Instruction": "\"Add bool _showTotalProfile = false; after _selectedFootprintCandle;\"",
+  "ReplacementContent": "\"   bool _showFootprintSidebar = false;\\n   CandleModel? _selectedFootprintCandle;\\n   bool _showTotalProfile = false;\"",
+  "StartLine": "66",
+  "TargetContent": "\"   bool _showFootprintSidebar = false;\\n   CandleModel? _selectedFootprintCandle;\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Adding _showTotalProfile state variable\"",
+  "toolSummary": "\"Modify chart_screen.dart\""
+}

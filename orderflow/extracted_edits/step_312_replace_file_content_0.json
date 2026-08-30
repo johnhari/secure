@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Restore the missing setState block in _recalculateYRangeForVisibleX.\"",
+  "EndLine": "5990",
+  "Instruction": "\"Fix syntax error in _recalculateYRangeForVisibleX.\"",
+  "ReplacementContent": "\"    if (isSignificant) {\\n      WidgetsBinding.instance.addPostFrameCallback((_) {\\n        if (mounted && !_isManualYScale) {\\n          setState(() {\\n            _yVisibleMin = newMin;\\n            _yVisibleMax = newMax;\\n          });\\n        }\\n      });\\n    }\\n  }\"",
+  "StartLine": "5985",
+  "TargetContent": "\"    if (isSignificant) {\\n      WidgetsBinding.instance.addPostFrameCallback((_) {\\n        if (mounted && !_isManualYScale) {\\n      });\\n    }\\n  }\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Fixing syntax in _recalculateYRangeForVisibleX\"",
+  "toolSummary": "\"Edit chart_screen.dart\""
+}

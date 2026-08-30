@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Add permission_handler and speech_to_text imports to chart_screen.dart.\"",
+  "EndLine": "11",
+  "Instruction": "\"Add speech and permission imports.\"",
+  "ReplacementContent": "\"import 'package:screen_secure/screen_secure.dart';\\nimport 'package:permission_handler/permission_handler.dart';\\nimport 'package:speech_to_text/speech_to_text.dart';\"",
+  "StartLine": "10",
+  "TargetContent": "\"import 'package:screen_secure/screen_secure.dart';\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Adding imports for voice search to chart_screen.dart\"",
+  "toolSummary": "\"Edit chart_screen.dart\""
+}

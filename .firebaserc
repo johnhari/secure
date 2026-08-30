@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "mst7-3fb55"
+  },
+  "targets": {
+    "mst7-3fb55": {
+      "hosting": {
+        "marketing": [
+          "orderflowterminal"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}

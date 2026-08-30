@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Add speech_to_text state variables to _ChartScreenState.\"",
+  "EndLine": "55",
+  "Instruction": "\"Add speech variables.\"",
+  "ReplacementContent": "\"  final FocusNode _searchFocusNode = FocusNode();\\n\\n  // Speech search recognition state\\n  final SpeechToText _speechToText = SpeechToText();\\n  bool _speechInitialized = false;\\n  bool _isListeningVoice = false;\\n  String _voiceStatusText = '';\\n  String _voiceRecognizedWords = '';\"",
+  "StartLine": "54",
+  "TargetContent": "\"  final FocusNode _searchFocusNode = FocusNode();\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Adding state variables for voice search\"",
+  "toolSummary": "\"Edit chart_screen.dart\""
+}

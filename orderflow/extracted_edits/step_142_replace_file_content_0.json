@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Restore _newCandleAvailable field to _ChartScreenState.\"",
+  "EndLine": "158",
+  "Instruction": "\"Add _newCandleAvailable field back.\"",
+  "ReplacementContent": "\"  DateTime? _lastAutoScrollCandle;\\n  // #9: Track whether a new candle has arrived while user is scrolled left\\n  bool _newCandleAvailable = false;\\n  int _lastKnownCandleCount = 0;\"",
+  "StartLine": "155",
+  "TargetContent": "\"  DateTime? _lastAutoScrollCandle;\\n  // #9: Track whether a new candle has arrived while user is scrolled left\\n  int _lastKnownCandleCount = 0;\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Restoring _newCandleAvailable to chart_screen.dart\"",
+  "toolSummary": "\"Edit chart_screen.dart\""
+}

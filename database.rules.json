@@ -1,0 +1,26 @@
+{
+  "rules": {
+    "sessions": {
+      ".read": "auth != null && (auth.token.admin === true || auth.token.email == 'jivaspcet@gmail.com' || auth.token.email == 'jivaspect@gmail.com' || auth.token.email == 'whatsapplivestatus@gmail.com')",
+      "$uid": {
+        ".read": "auth != null && (auth.uid === $uid || auth.token.admin === true || auth.token.email == 'jivaspcet@gmail.com' || auth.token.email == 'jivaspect@gmail.com' || auth.token.email == 'whatsapplivestatus@gmail.com')",
+        ".write": "auth != null && (auth.uid === $uid || auth.token.admin === true || auth.token.email == 'jivaspcet@gmail.com' || auth.token.email == 'jivaspect@gmail.com' || auth.token.email == 'whatsapplivestatus@gmail.com')"
+      }
+    },
+    "presence": {
+      ".read": "auth != null",
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid === $uid || auth.token.admin === true || auth.token.email == 'jivaspcet@gmail.com' || auth.token.email == 'jivaspect@gmail.com' || auth.token.email == 'whatsapplivestatus@gmail.com')"
+      }
+    },
+    "market_data": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.admin === true || auth.token.email == 'jivaspcet@gmail.com' || auth.token.email == 'jivaspect@gmail.com' || auth.token.email == 'whatsapplivestatus@gmail.com')"
+    },
+    "trade_signals": {
+      ".read": "auth != null",
+      ".write": "auth != null && (auth.token.admin === true || auth.token.email == 'jivaspcet@gmail.com' || auth.token.email == 'jivaspect@gmail.com' || auth.token.email == 'whatsapplivestatus@gmail.com')"
+    }
+  }
+}

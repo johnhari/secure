@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Delete unused recalculate range function to clean up the code.\"",
+  "EndLine": "6008",
+  "Instruction": "\"Delete the _recalculateYRangeForVisibleX method.\"",
+  "ReplacementContent": "\"\"",
+  "StartLine": "5964",
+  "TargetContent": "\"  void _recalculateYRangeForVisibleX(double xMin, double xMax, List<CandleModel> candles) {\\n    if (candles.isEmpty || _isManualYScale) return;\\n    \\n    int startIndex = xMin.round().clamp(0, candles.length - 1);\\n    int endIndex = xMax.round().clamp(0, candles.length - 1);\\n    \\n    if (startIndex > endIndex) {\\n      final temp = startIndex;\\n      startIndex = endIndex;\\n      endIndex = temp;\\n    }\\n    \\n    double minLow = double.infinity;\\n    double maxHigh = -double.infinity;\\n    \\n    for (int i = startIndex; i <= endIndex; i++) {\\n      final c = candles[i];\\n      if (c.low < minLow) minLow = c.low;\\n      if (c.high > maxHigh) maxHigh = c.high;\\n    }\\n    \\n    if (minLow == double.infinity || maxHigh == -double.infinity) return;\\n    \\n    final range = maxHigh - minLow;\\n    final padding = range > 0 ? range * 0.08 : minLow * 0.01;\\n    final newMin = minLow - padding;\\n    final double newMax = maxHigh + padding;\\n    \\n    final isSignificant = _yVisibleMin == null || \\n        _yVisibleMax == null || \\n        (newMin - _yVisibleMin!).abs() > (minLow * 0.0005) || \\n        (newMax - _yVisibleMax!).abs() > (maxHigh * 0.0005);\\n        \\n    if (isSignificant) {\\n      WidgetsBinding.instance.addPostFrameCallback((_) {\\n        if (mounted && !_isManualYScale) {\\n          setState(() {\\n            _yVisibleMin = newMin;\\n            _yVisibleMax = newMax;\\n          });\\n        }\\n      });\\n    }\\n  }\\n\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Deleting unused function\"",
+  "toolSummary": "\"Remove unused range calculation function\""
+}

@@ -1,0 +1,10 @@
+{
+	"folders": [
+		{
+			"path": "../New folder"
+		}
+	],
+	"settings": {
+		"java.configuration.updateBuildConfiguration": "automatic"
+	}
+}

@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Insert _buildViewModeButton helper method.\"",
+  "EndLine": "5806",
+  "Instruction": "\"Insert _buildViewModeButton helper method after end of _buildFootprintSidebar.\"",
+  "ReplacementContent": "\"  }\\n\\n  Widget _buildViewModeButton({required String label, required bool active, required VoidCallback onTap}) {\\n    return InkWell(\\n      onTap: () {\\n        HapticFeedback.lightImpact();\\n        onTap();\\n      },\\n      borderRadius: BorderRadius.circular(6),\\n      child: AnimatedContainer(\\n        duration: const Duration(milliseconds: 200),\\n        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),\\n        decoration: BoxDecoration(\\n          color: active ? AppTheme.primaryCyan.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.02),\\n          borderRadius: BorderRadius.circular(6),\\n          border: Border.all(color: active ? AppTheme.primaryCyan.withValues(alpha: 0.4) : Colors.white10, width: 1),\\n        ),\\n        child: Text(\\n          label,\\n          style: TextStyle(\\n            color: active ? AppTheme.primaryCyan : Colors.white38,\\n            fontSize: 8,\\n            fontWeight: FontWeight.w900,\\n            letterSpacing: 0.5,\\n          ),\\n        ),\\n      ),\\n    );\\n  }\\n\\n  Widget _buildCandleSummaryCard(CandleModel c) {\"",
+  "StartLine": "5802",
+  "TargetContent": "\"  }\\n\\n  Widget _buildCandleSummaryCard(CandleModel c) {\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Adding _buildViewModeButton helper method\"",
+  "toolSummary": "\"Modify chart_screen.dart\""
+}

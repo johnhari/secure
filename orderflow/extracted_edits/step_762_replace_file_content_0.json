@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Add Y-axis visible range auto-calculation inside the build method of ChartScreen when not in manual scaling mode, ensuring the 15 visible candlesticks are perfectly zoomed and vertically centered.\"",
+  "EndLine": "992",
+  "Instruction": "\"Insert the Y-axis visible range auto-calculation right after selectedInstrument is defined.\"",
+  "ReplacementContent": "\"  @override\\n  Widget build(BuildContext context) {\\n    final authState = ref.watch(authProvider);\\n    final candleState = ref.watch(candleStreamProvider);\\n    final selectedInstrument = ref.watch(selectedInstrumentProvider);\\n\\n    // Calculate visible Y-range if not in manual scale mode (auto-zooming last 15 candles)\\n    if (!_isManualYScale && candleState.candles.isNotEmpty) {\\n      final list = candleState.candles;\\n      final int start = list.length > 15 ? list.length - 15 : 0;\\n      double minLow = double.infinity;\\n      double maxHigh = -double.infinity;\\n      for (int i = start; i < list.length; i++) {\\n        final c = list[i];\\n        if (c.low < minLow) minLow = c.low;\\n        if (c.high > maxHigh) maxHigh = c.high;\\n      }\\n      \\n      if (minLow != double.infinity && maxHigh != -double.infinity) {\\n        final range = maxHigh - minLow;\\n        final padding = range > 0 ? range * 0.08 : minLow * 0.01;\\n        _yVisibleMin = minLow - padding;\\n        _yVisibleMax = maxHigh + padding;\\n      }\\n    }\"",
+  "StartLine": "987",
+  "TargetContent": "\"  @override\\n  Widget build(BuildContext context) {\\n    final authState = ref.watch(authProvider);\\n    final candleState = ref.watch(candleStreamProvider);\\n    final selectedInstrument = ref.watch(selectedInstrumentProvider);\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Adding Y range auto-calculation in build method\"",
+  "toolSummary": "\"Fix chart vertical scale\""
+}

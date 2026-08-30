@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Update last candle copyWith in CandleSeries dataSource to adjust high and low limits dynamically based on the live close price, ensuring valid candlestick structure for Syncfusion.\"",
+  "EndLine": "2716",
+  "Instruction": "\"Update the last candle copyWith in CandleSeries dataSource.\"",
+  "ReplacementContent": "\"            dataSource: candles.isEmpty ? [] : [\\n              ...candles.sublist(0, candles.length - 1),\\n              (() {\\n                final lastCandle = candles.last;\\n                final currentClose = _animatedCloseNotifier.value == 0 \\n                    ? lastCandle.close \\n                    : _animatedCloseNotifier.value;\\n                return lastCandle.copyWith(\\n                  close: currentClose,\\n                  high: max(lastCandle.high, currentClose),\\n                  low: min(lastCandle.low, currentClose),\\n                );\\n              })(),\\n            ],\"",
+  "StartLine": "2709",
+  "TargetContent": "\"            dataSource: candles.isEmpty ? [] : [\\n              ...candles.sublist(0, candles.length - 1),\\n              candles.last.copyWith(\\n                close: _animatedCloseNotifier.value == 0 \\n                    ? candles.last.close \\n                    : _animatedCloseNotifier.value\\n              ),\\n            ],\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Updating CandleSeries dataSource\"",
+  "toolSummary": "\"Fix last candle geometry\""
+}

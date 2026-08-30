@@ -1,0 +1,12 @@
+{
+  "AllowMultiple": "false",
+  "Description": "\"Insert PROFILE VIEW MODE toggle in _buildFootprintSidebar.\"",
+  "EndLine": "5687",
+  "Instruction": "\"Insert View Mode Toggle between _buildCandleSummaryCard(candle) and Padding.\"",
+  "ReplacementContent": "\"                _buildCandleSummaryCard(candle),\\n                Padding(\\n                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),\\n                  child: Row(\\n                    mainAxisAlignment: MainAxisAlignment.spaceBetween,\\n                    children: [\\n                      const Text(\\n                        'PROFILE VIEW MODE',\\n                        style: TextStyle(\\n                          color: Colors.white38,\\n                          fontSize: 8,\\n                          fontWeight: FontWeight.w900,\\n                          letterSpacing: 1,\\n                        ),\\n                      ),\\n                      Row(\\n                        children: [\\n                          _buildViewModeButton(\\n                            label: 'BID/ASK',\\n                            active: !_showTotalProfile,\\n                            onTap: () => setState(() => _showTotalProfile = false),\\n                          ),\\n                          const SizedBox(width: 8),\\n                          _buildViewModeButton(\\n                            label: 'TOTAL PROFILE',\\n                            active: _showTotalProfile,\\n                            onTap: () => setState(() => _showTotalProfile = true),\\n                          ),\\n                        ],\\n                      ),\\n                    ],\\n                  ),\\n                ),\\n                Padding(\\n                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),\"",
+  "StartLine": "5681",
+  "TargetContent": "\"                _buildCandleSummaryCard(candle),\\n                Padding(\\n                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),\"",
+  "TargetFile": "\"c:\\\\Users\\\\PUTIN\\\\Desktop\\\\ADVANCEORDERFLOW\\\\orderflow\\\\lib\\\\presentation\\\\screens\\\\chart_screen.dart\"",
+  "toolAction": "\"Adding View Mode Toggle to Footprint Sidebar\"",
+  "toolSummary": "\"Modify chart_screen.dart\""
+}

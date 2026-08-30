@@ -1,0 +1,59 @@
+buildscript {
+    ext.kotlin_version = '2.3.0'
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.6.0'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath 'com.google.gms:google-services:4.4.0'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+subprojects {
+    def configureSubproject = { prj ->
+        if (prj.hasProperty('android')) {
+            if (prj.android.namespace == null) {
+                prj.android.namespace = prj.group
+            }
+            prj.android {
+                compileOptions {
+                    sourceCompatibility JavaVersion.VERSION_1_8
+                    targetCompatibility JavaVersion.VERSION_1_8
+                }
+            }
+        }
+        prj.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions {
+                jvmTarget = "1.8"
+                freeCompilerArgs += "-Xskip-metadata-version-check"
+            }
+        }
+    }
+    if (project.state.executed) {
+        configureSubproject(project)
+    } else {
+        project.afterEvaluate { configureSubproject(it) }
+    }
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
+}

@@ -1,0 +1,99 @@
+name: orderflow
+description: Production-ready Flutter app for order flow analysis with live candlestick charts
+publish_to: 'none'
+version: 8.7.0+87
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Firebase
+  firebase_core: ^4.11.0
+  firebase_auth: ^6.5.3
+  firebase_database: ^12.4.3
+  cloud_firestore: ^6.6.0
+  cloud_functions: ^6.3.3
+  firebase_storage: ^13.4.3
+  file_picker: ^11.0.2
+
+  # State Management
+  flutter_riverpod: ^2.4.9
+  riverpod_annotation: ^2.3.3
+
+  # Networking
+  web_socket_channel: ^2.4.0
+  http: ^1.1.2
+
+  # Charts
+  syncfusion_flutter_charts: ^27.2.5
+
+  # Local Storage
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.2
+
+  # Device Info
+  device_info_plus: ^10.1.2
+
+  # Utilities
+  intl: ^0.18.1
+  uuid: ^4.2.2
+  equatable: ^2.0.5
+
+  # UI
+  flutter_launcher_icons: ^0.13.1
+  
+  # Notifications & Permissions
+  permission_handler: ^11.3.1
+  firebase_messaging: ^16.4.0
+  flutter_local_notifications: ^17.0.0
+  package_info_plus: ^9.0.0
+  screen_secure: ^1.0.3
+  audioplayers: ^5.2.1
+  vibration: ^3.0.0
+  url_launcher: ^6.3.2
+  collection: ^1.18.0
+  google_generative_ai: ^0.4.6
+  speech_to_text: ^7.4.0
+  crypto: ^3.0.3
+  win32_registry: ^1.1.5
+
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.7
+  riverpod_generator: ^2.3.9
+
+flutter:
+  uses-material-design: true
+
+  # Assets
+  assets:
+    - assets/audio/
+    - assets/images/
+    - assets/images/logo.png
+    - assets/images/logo_neon.png
+    - assets/images/orderflow_logo_white.png
+    - assets/images/nifty50_logo.png
+    - assets/images/banknifty_logo.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  macos:
+    generate: true
+    image_path: "assets/images/logo.png"
+  image_path: "assets/images/logo.png"
+  adaptive_icon_background: "#1F1D2B"
+  adaptive_icon_foreground: "assets/images/logo.png"
+  min_sdk_android: 21
+  windows:
+    generate: true
+    image_path: "assets/images/logo.png"
