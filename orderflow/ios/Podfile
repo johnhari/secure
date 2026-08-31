@@ -48,11 +48,21 @@ post_install do |installer|
       config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = ""
       config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
       config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
-      # Strip unsupported -G flag for older deployment targets
+
+      # Strip unsupported -G flag from all build settings
+      ['OTHER_CFLAGS', 'OTHER_LDFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_SWIFT_FLAGS'].each do |key|
+        if config.build_settings[key].is_a?(String)
+          config.build_settings[key] = config.build_settings[key].gsub(/(^|\s)-G(\s|$)/, '\1\2').strip
+        elsif config.build_settings[key].is_a?(Array)
+          config.build_settings[key] = config.build_settings[key].reject { |f| f == '-G' }
+        end
+      end
+
+      # Strip -G from xcconfig files
       xcconfig_path = config.base_configuration_reference&.real_path
       if xcconfig_path && File.exist?(xcconfig_path)
         xcconfig = File.read(xcconfig_path)
-        new_xcconfig = xcconfig.gsub(' -G', '')
+        new_xcconfig = xcconfig.gsub(/(^|\s)-G(\s|$)/, '\1\2')
         File.open(xcconfig_path, 'w') { |file| file << new_xcconfig }
       end
     end

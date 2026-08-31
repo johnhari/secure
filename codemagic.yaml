@@ -17,6 +17,7 @@ workflows:
       - name: Build iOS IPA
         script: |
           cd orderflow
+          export OTHER_LDFLAGS="$(inherited) -Wl,-ld_classic"
           flutter build ipa --release --no-codesign
     artifacts:
       - orderflow/build/ios/ipa/*.ipa
