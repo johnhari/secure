@@ -35,24 +35,28 @@ jobs:
           cd orderflow
           flutter build ios --release --no-codesign
           
-          # Locate the complete compiled Runner.app
-          if [ -d "build/ios/iphoneos/Runner.app" ]; then
-            APP_DIR="build/ios/iphoneos/Runner.app"
-          elif [ -d "build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app" ]; then
-            APP_DIR="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app"
-          else
-            APP_DIR=$(find . -name "Runner.app" -type d | head -n 1)
+          echo "=== SEARCHING FOR COMPILED RUNNER.APP ==="
+          APP_PATH=$(find build "$HOME/Library/Developer/Xcode/DerivedData" -name "Runner.app" -type d 2>/dev/null | grep -E "Release-iphoneos|iphoneos" | head -n 1)
+          
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find build "$HOME/Library/Developer/Xcode/DerivedData" -name "Runner.app" -type d 2>/dev/null | head -n 1)
           fi
           
-          echo "=== PACKAGING IPA FROM: $APP_DIR ==="
-          rm -rf ipa_build
-          mkdir -p ipa_build/Payload
-          cp -R "$APP_DIR" ipa_build/Payload/
-          cd ipa_build
+          echo "Found Runner.app at: $APP_PATH"
+          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
+            echo "ERROR: Runner.app was not produced."
+            exit 1
+          fi
+          
+          echo "=== PACKAGING IPA ==="
+          rm -rf ipa_output Orderflow-iOS-Release.ipa
+          mkdir -p ipa_output/Payload
+          cp -R "$APP_PATH" ipa_output/Payload/
+          cd ipa_output
           zip -r ../Orderflow-iOS-Release.ipa Payload
           cd ..
           
-          echo "=== FINAL IPA DETAILS ==="
+          echo "=== FINAL IPA FILE ==="
           ls -lh Orderflow-iOS-Release.ipa
 
       - name: Upload iOS IPA Artifact
