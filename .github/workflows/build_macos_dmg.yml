@@ -16,18 +16,16 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.22.3'
           channel: 'stable'
           cache: true
 
       - name: Configure Flutter & Dependencies
         run: |
-          flutter config --no-enable-swift-package-manager
-          flutter config --no-analytics
           cd orderflow
+          flutter config --no-analytics
+          flutter clean
           mkdir -p build/macos/SourcePackages
           mkdir -p build/macos/dmg
-          flutter clean
           flutter pub get
 
       - name: Install CocoaPods
@@ -38,6 +36,7 @@ jobs:
       - name: Build macOS App Release
         run: |
           cd orderflow
+          mkdir -p build/macos/SourcePackages
           flutter build macos --release
 
       - name: Create DMG Disk Image Installer
