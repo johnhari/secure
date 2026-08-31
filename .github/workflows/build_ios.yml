@@ -35,6 +35,7 @@ jobs:
           cd orderflow
           flutter build ios --release --no-codesign
           
+          # Find the compiled Runner.app
           APP_PATH=$(find build /Users/runner/Library/Developer/Xcode/DerivedData -name "Runner.app" -type d 2>/dev/null | grep -E "Release-iphoneos|iphoneos" | head -n 1)
           if [ -z "$APP_PATH" ]; then
             APP_PATH=$(find build /Users/runner/Library/Developer/Xcode/DerivedData -name "Runner.app" -type d 2>/dev/null | head -n 1)

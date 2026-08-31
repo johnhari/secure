@@ -1,144 +1,47 @@
 workflows:
-
-  # ─────────────────────────────────────────────────────────────
-  # iOS Release Build
-  # ─────────────────────────────────────────────────────────────
   ios-release:
-    name: iOS Release (IPA)
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-
+    name: Build iOS IPA (Release)
+    instance_type: mac_mini_m1
+    max_build_duration: 30
     environment:
-      flutter: 3.22.0
+      flutter: stable
       xcode: latest
       cocoapods: default
-      # Add these in Codemagic UI → Environment variables:
-      #   APP_STORE_CONNECT_ISSUER_ID
-      #   APP_STORE_CONNECT_KEY_IDENTIFIER
-      #   APP_STORE_CONNECT_PRIVATE_KEY   (contents of AuthKey_XXXX.p8)
-      #   CERTIFICATE_PRIVATE_KEY         (contents of your signing certificate)
-      vars:
-        BUNDLE_ID: "com.bigshot.orderflow"   # ← change to your real Bundle ID
-        XCODE_WORKSPACE: "orderflow/ios/Runner.xcworkspace"
-        XCODE_SCHEME: "Runner"
-
-      app_store_connect:
-        auth: integration          # Uses App Store Connect API key set above
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-
-      ios_signing:
-        distribution_type: app_store   # or 'ad_hoc' for direct installs
-        bundle_identifier: $BUNDLE_ID
-
     scripts:
-      - name: Get Flutter packages
+      - name: Flutter & CocoaPods Setup
         script: |
           cd orderflow
+          flutter config --no-analytics
+          flutter config --no-enable-swift-package-manager
           flutter pub get
-
-      - name: Pod install
-        script: |
-          cd orderflow/ios
-          pod install
-
-      - name: Build IPA
+      - name: Build iOS IPA
         script: |
           cd orderflow
-          flutter build ipa --release \
-            --export-options-plist=/Users/builder/export_options.plist
-
+          flutter build ipa --release --no-codesign
     artifacts:
       - orderflow/build/ios/ipa/*.ipa
-      - /tmp/xcodebuild_logs/*.log
+      - orderflow/build/ios/archive/*.xcarchive
 
-    publishing:
-      app_store_connect:
-        auth: integration
-        submit_to_testflight: true   # Set false if you just want the IPA
-
-  # ─────────────────────────────────────────────────────────────
-  # Android Release Build
-  # ─────────────────────────────────────────────────────────────
-  android-release:
-    name: Android Release (APK + AAB)
-    max_build_duration: 45
-    instance_type: linux_x2
-
-    environment:
-      flutter: 3.22.0
-      java: 17
-      # Add these in Codemagic UI → Environment variables:
-      #   CM_KEYSTORE          (base64 of your .jks keystore file)
-      #   CM_KEYSTORE_PASSWORD
-      #   CM_KEY_ALIAS
-      #   CM_KEY_PASSWORD
-
-    scripts:
-      - name: Set up keystore
-        script: |
-          echo $CM_KEYSTORE | base64 --decode > /tmp/keystore.jks
-          cat >> "$CM_BUILD_DIR/orderflow/android/key.properties" <<EOF
-          storePassword=$CM_KEYSTORE_PASSWORD
-          keyPassword=$CM_KEY_PASSWORD
-          keyAlias=$CM_KEY_ALIAS
-          storeFile=/tmp/keystore.jks
-          EOF
-
-      - name: Get Flutter packages
-        script: |
-          cd orderflow
-          flutter pub get
-
-      - name: Build APK (release)
-        script: |
-          cd orderflow
-          flutter build apk --release
-
-      - name: Build AAB (Play Store)
-        script: |
-          cd orderflow
-          flutter build appbundle --release
-
-    artifacts:
-      - orderflow/build/app/outputs/flutter-apk/app-release.apk
-      - orderflow/build/app/outputs/bundle/release/app-release.aab
-
-    publishing:
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal          # internal / alpha / beta / production
-        submit_as_draft: true
-
-  # ─────────────────────────────────────────────────────────────
-  # macOS Desktop Build Workflow
-  # ─────────────────────────────────────────────────────────────
   macos-release:
-    name: macOS Desktop Build (APP / DMG)
-    max_build_duration: 60
-    instance_type: mac_mini_m2
-
+    name: Build macOS DMG (Release)
+    instance_type: mac_mini_m1
+    max_build_duration: 30
     environment:
-      flutter: 3.22.0
+      flutter: stable
       xcode: latest
       cocoapods: default
-
     scripts:
-      - name: Get Flutter packages
+      - name: Flutter & CocoaPods Setup
         script: |
           cd orderflow
+          flutter config --no-analytics
+          flutter config --no-enable-swift-package-manager
           flutter pub get
-
-      - name: Build macOS Application & Create DMG
+      - name: Build macOS Application
         script: |
           cd orderflow
           flutter build macos --release
           mkdir -p build/macos/dmg
-          hdiutil create -volname "Orderflow" -srcfolder "build/macos/Build/Products/Release/orderflow.app" -ov -format UDZO "build/macos/dmg/Orderflow-Installer.dmg"
-
+          hdiutil create -volname "ADVANCE ORDERFLOW ANALYZER" -srcfolder "build/macos/Build/Products/Release/orderflow.app" -ov -format UDZO "build/macos/dmg/Orderflow-Installer.dmg"
     artifacts:
-      - orderflow/build/macos/Build/Products/Release/*.app
       - orderflow/build/macos/dmg/*.dmg
-
-
