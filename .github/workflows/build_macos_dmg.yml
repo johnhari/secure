@@ -35,27 +35,15 @@ jobs:
           cd orderflow
           flutter build macos --release
           
-          echo "=== SEARCHING FOR COMPILED MACOS APP ==="
-          APP_PATH=$(find build "$HOME/Library/Developer/Xcode/DerivedData" -name "orderflow.app" -type d 2>/dev/null | grep -E "Release" | head -n 1)
-          
+          APP_PATH=$(find build /Users/runner/Library/Developer/Xcode/DerivedData -name "orderflow.app" -type d 2>/dev/null | grep -E "Release" | head -n 1)
           if [ -z "$APP_PATH" ]; then
-            APP_PATH=$(find build "$HOME/Library/Developer/Xcode/DerivedData" -name "*.app" -type d 2>/dev/null | head -n 1)
+            APP_PATH=$(find build /Users/runner/Library/Developer/Xcode/DerivedData -name "*.app" -type d 2>/dev/null | head -n 1)
           fi
           
-          echo "Found macOS App at: $APP_PATH"
-          if [ -z "$APP_PATH" ] || [ ! -d "$APP_PATH" ]; then
-            echo "ERROR: macOS .app bundle was not produced."
-            exit 1
-          fi
-          
-          echo "=== PACKAGING DMG ==="
-          rm -rf dmg_output Orderflow-Installer.dmg
+          echo "Selected macOS App: $APP_PATH"
           mkdir -p dmg_output
           cp -R "$APP_PATH" dmg_output/
-          
           hdiutil create -volname "ADVANCE ORDERFLOW ANALYZER" -srcfolder dmg_output -ov -format UDZO Orderflow-Installer.dmg
-          
-          echo "=== FINAL DMG FILE ==="
           ls -lh Orderflow-Installer.dmg
 
       - name: Upload DMG Installer Artifact
