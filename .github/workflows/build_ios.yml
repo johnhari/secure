@@ -23,30 +23,53 @@ jobs:
         run: |
           flutter config --no-analytics
           flutter config --no-enable-swift-package-manager
+          flutter doctor -v
           mkdir -p orderflow/build/ios/SourcePackages
           cd orderflow
           rm -f ios/Podfile.lock
           rm -rf ios/Pods
+          rm -f pubspec.lock
           flutter pub get
 
       - name: Build iOS Application (Release)
         run: |
           cd orderflow
-          flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign 2>&1 | tee build_ios_log.txt || true
           
+          echo "=== FLUTTER BUILD EXIT CODE: $? ==="
+          
+          # Check if Runner.app was produced
           APP_PATH=$(find build -name "Runner.app" -type d 2>/dev/null | head -n 1)
+          
           if [ -z "$APP_PATH" ]; then
+            echo "Runner.app NOT found in build/. Checking DerivedData..."
             APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Runner.app" -type d 2>/dev/null | head -n 1)
           fi
-          echo "Compiling and packaging IPA from: $APP_PATH"
           
+          if [ -z "$APP_PATH" ]; then
+            echo "ERROR: Runner.app not found anywhere. Build failed."
+            echo "=== Last 200 lines of build log ==="
+            tail -200 build_ios_log.txt
+            exit 1
+          fi
+          
+          echo "Found Runner.app at: $APP_PATH"
           mkdir -p build/ios/ipa_output/Payload
           cp -R "$APP_PATH" build/ios/ipa_output/Payload/
           cd build/ios/ipa_output
           zip -r Orderflow-iOS-Release.ipa Payload
-          cd ../../..
+          echo "IPA created successfully!"
+          ls -la Orderflow-iOS-Release.ipa
+
+      - name: Upload Build Log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: iOS-Build-Log
+          path: orderflow/build_ios_log.txt
 
       - name: Upload iOS IPA Artifact
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Orderflow-iOS-Release-IPA
