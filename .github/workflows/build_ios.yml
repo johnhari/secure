@@ -16,22 +16,18 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.22.3'
           channel: 'stable'
           cache: true
 
-      - name: Prepare Build Directories
+      - name: Configure Flutter & Dependencies
         run: |
-          mkdir -p orderflow/build/ios/SourcePackages
-          mkdir -p orderflow/build/ios/ipa
-
-      - name: Precache iOS Artifacts
-        run: |
+          flutter config --no-enable-swift-package-manager
+          flutter config --no-analytics
           cd orderflow
-          flutter precache --ios
-
-      - name: Install Dependencies
-        run: |
-          cd orderflow
+          mkdir -p build/ios/SourcePackages
+          mkdir -p build/ios/ipa
+          flutter clean
           flutter pub get
 
       - name: Install CocoaPods

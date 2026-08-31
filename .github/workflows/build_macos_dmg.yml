@@ -16,23 +16,24 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.22.3'
           channel: 'stable'
           cache: true
 
-      - name: Prepare Build Directories
+      - name: Configure Flutter & Dependencies
         run: |
-          mkdir -p orderflow/build/macos/SourcePackages
-          mkdir -p orderflow/build/macos/dmg
-
-      - name: Precache macOS Artifacts
-        run: |
+          flutter config --no-enable-swift-package-manager
+          flutter config --no-analytics
           cd orderflow
-          flutter precache --macos
-
-      - name: Install Dependencies
-        run: |
-          cd orderflow
+          mkdir -p build/macos/SourcePackages
+          mkdir -p build/macos/dmg
+          flutter clean
           flutter pub get
+
+      - name: Install CocoaPods
+        run: |
+          cd orderflow/macos
+          pod install --repo-update || pod install
 
       - name: Build macOS App Release
         run: |
