@@ -23,7 +23,6 @@ jobs:
         run: |
           flutter config --no-analytics
           flutter config --no-enable-swift-package-manager
-          flutter doctor -v
           mkdir -p orderflow/build/ios/SourcePackages
           cd orderflow
           rm -f ios/Podfile.lock
@@ -34,35 +33,25 @@ jobs:
       - name: Build iOS Application (Release)
         run: |
           cd orderflow
-          flutter build ios --release --no-codesign 2>&1 | tee build_ios_log.txt || true
+          flutter build ios --release --no-codesign -v 2>&1 | tee build_ios_log.txt
           
-          echo "=== FLUTTER BUILD EXIT CODE: $? ==="
+          echo "=== FINDING COMPILED APP ==="
+          find . -name "*.app" -type d || true
           
-          # Check if Runner.app was produced
           APP_PATH=$(find build -name "Runner.app" -type d 2>/dev/null | head -n 1)
-          
           if [ -z "$APP_PATH" ]; then
-            echo "Runner.app NOT found in build/. Checking DerivedData..."
             APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Runner.app" -type d 2>/dev/null | head -n 1)
           fi
           
-          if [ -z "$APP_PATH" ]; then
-            echo "ERROR: Runner.app not found anywhere. Build failed."
-            echo "=== Last 200 lines of build log ==="
-            tail -200 build_ios_log.txt
-            exit 1
-          fi
-          
-          echo "Found Runner.app at: $APP_PATH"
+          echo "Selected Runner.app: $APP_PATH"
           mkdir -p build/ios/ipa_output/Payload
           cp -R "$APP_PATH" build/ios/ipa_output/Payload/
           cd build/ios/ipa_output
           zip -r Orderflow-iOS-Release.ipa Payload
-          echo "IPA created successfully!"
-          ls -la Orderflow-iOS-Release.ipa
+          ls -lh Orderflow-iOS-Release.ipa
 
-      - name: Upload Build Log (on failure)
-        if: failure()
+      - name: Upload Build Log (Always)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: iOS-Build-Log
