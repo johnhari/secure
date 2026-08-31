@@ -39,6 +39,10 @@ jobs:
           echo "=== FLUTTER BUILD EXIT CODE: $? ==="
           
           APP_PATH=$(find build -name "*.app" -type d 2>/dev/null | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            echo "Checking DerivedData for macOS .app..."
+            APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" -type d 2>/dev/null | head -n 1)
+          fi
           
           if [ -z "$APP_PATH" ]; then
             echo "ERROR: No .app bundle found. Build failed."
