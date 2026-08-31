@@ -31,6 +31,9 @@ target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
+  # Pin FirebaseSharedSwift to < 11.0 to avoid Swift 6 'sending' syntax incompatibility on Xcode 15
+  pod 'FirebaseSharedSwift', '< 11.0'
+
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
   target 'RunnerTests' do
     inherit! :search_paths
@@ -46,6 +49,7 @@ post_install do |installer|
       config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = ""
       config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
       config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
+      config.build_settings['SWIFT_VERSION'] = '5.0'
     end
   end
 end
