@@ -19,20 +19,22 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Configure Flutter & Dependencies
+      - name: Configure Flutter & Prepare Directories
+        run: |
+          flutter config --no-analytics
+          flutter config --no-enable-swift-package-manager
+          mkdir -p orderflow/build/ios/SourcePackages
+          mkdir -p orderflow/build/ios/ipa
+          mkdir -p orderflow/build/ios/iphoneos
+
+      - name: Install Dependencies
         run: |
           cd orderflow
-          flutter config --no-analytics
-          rm -f pubspec.lock
-          flutter clean
-          mkdir -p build/ios/SourcePackages
-          mkdir -p build/ios/ipa
           flutter pub get
 
       - name: Install CocoaPods
         run: |
           cd orderflow/ios
-          rm -f Podfile.lock
           pod install --repo-update || pod install
 
       - name: Build iOS (Unsigned Release / Archive)
