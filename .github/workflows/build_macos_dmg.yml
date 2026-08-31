@@ -22,6 +22,7 @@ jobs:
       - name: Configure Flutter & Dependencies
         run: |
           flutter config --no-analytics
+          flutter config --no-enable-swift-package-manager
           mkdir -p orderflow/build/macos/SourcePackages
           mkdir -p orderflow/build/macos/dmg
           cd orderflow

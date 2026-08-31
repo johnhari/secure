@@ -22,6 +22,7 @@ jobs:
       - name: Configure Flutter & Dependencies
         run: |
           flutter config --no-analytics
+          flutter config --no-enable-swift-package-manager
           mkdir -p orderflow/build/ios/SourcePackages
           mkdir -p orderflow/build/ios/ipa
           mkdir -p orderflow/build/ios/iphoneos
