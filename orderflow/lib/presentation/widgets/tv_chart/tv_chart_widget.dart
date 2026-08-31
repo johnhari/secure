@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'tv_chart_web.dart' if (dart.library.io) 'tv_chart_stub.dart';
+import 'tv_chart_stub.dart' if (dart.library.html) 'tv_chart_web.dart';
 
 /// Platform-adaptive chart widget.
 /// On **web**: renders TradingView Lightweight Charts via an embedded iframe.
