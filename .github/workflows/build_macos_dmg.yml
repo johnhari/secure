@@ -24,7 +24,6 @@ jobs:
           flutter config --no-analytics
           flutter config --no-enable-swift-package-manager
           mkdir -p orderflow/build/macos/SourcePackages
-          mkdir -p orderflow/build/macos/dmg
           cd orderflow
           rm -f macos/Podfile.lock
           rm -rf macos/Pods
@@ -39,12 +38,16 @@ jobs:
         run: |
           cd orderflow
           APP_PATH=$(find build -name "*.app" -type d 2>/dev/null | head -n 1)
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "*.app" -type d 2>/dev/null | head -n 1)
+          fi
           echo "Packaging macOS app from: $APP_PATH"
-          mkdir -p build/macos/dmg
-          hdiutil create -volname "ADVANCE ORDERFLOW ANALYZER" -srcfolder "$APP_PATH" -ov -format UDZO "build/macos/dmg/Orderflow-Installer.dmg"
+          mkdir -p build/macos/dmg_output
+          hdiutil create -volname "ADVANCE ORDERFLOW ANALYZER" -srcfolder "$APP_PATH" -ov -format UDZO "build/macos/dmg_output/Orderflow-Installer.dmg"
 
       - name: Upload DMG Installer Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Orderflow-macOS-Installer-DMG
-          path: orderflow/build/macos/dmg/Orderflow-Installer.dmg
+          path: orderflow/build/macos/dmg_output/Orderflow-Installer.dmg
+          if-no-files-found: error
