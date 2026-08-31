@@ -59,7 +59,6 @@ dependencies:
   google_generative_ai: ^0.4.6
   speech_to_text: ^7.4.0
   crypto: ^3.0.3
-  win32_registry: ^1.1.5
 
 
 dev_dependencies:

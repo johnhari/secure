@@ -30,22 +30,23 @@ jobs:
           rm -rf ios/Pods
           flutter pub get
 
-      - name: Build iOS Application (Release)
+      - name: Build iOS IPA & Archive
         run: |
           cd orderflow
-          flutter build ios --release --no-codesign || xcodebuild -workspace ios/Runner.xcworkspace -scheme Runner -configuration Release -derivedDataPath build/ios/DerivedData -destination generic/platform=iOS CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build
-          
-          APP_PATH=$(find . ~/Library/Developer/Xcode/DerivedData -name "Runner.app" 2>/dev/null | head -n 1)
-          echo "Found compiled app at: $APP_PATH"
+          flutter build ipa --no-codesign || flutter build ios --release --no-codesign
           
           mkdir -p build/ios/ipa/Payload
-          cp -r "$APP_PATH" build/ios/ipa/Payload/
-          cd build/ios/ipa
-          zip -r Orderflow-iOS-Release.ipa Payload
-          cd ../../..
+          APP_PATH=$(find build ~/Library/Developer/Xcode/DerivedData -name "Runner.app" -type d 2>/dev/null | head -n 1)
+          if [ -n "$APP_PATH" ] && [ -d "$APP_PATH" ]; then
+            echo "Packaging IPA from: $APP_PATH"
+            cp -r "$APP_PATH" build/ios/ipa/Payload/
+            cd build/ios/ipa
+            zip -r Orderflow-iOS-Release.ipa Payload
+            cd ../../..
+          fi
 
       - name: Upload iOS IPA Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Orderflow-iOS-Release-IPA
-          path: orderflow/build/ios/ipa/Orderflow-iOS-Release.ipa
+          path: orderflow/build/ios/ipa/*.ipa

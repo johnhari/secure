@@ -5,7 +5,6 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
-import 'package:win32_registry/win32_registry.dart';
 
 class DeviceUtils {
   static final DeviceInfoPlugin _deviceInfo = DeviceInfoPlugin();
@@ -15,8 +14,7 @@ class DeviceUtils {
   // ── 1. Multi-factor Hardware Fingerprint ───────────────────────────────────
 
   /// Returns a stable multi-factor hardware fingerprint.
-  /// On Windows: SHA-256 hash of MachineGuid + ComputerName + ProcessorId + disk serial.
-  /// Much harder to spoof than a single registry key.
+  /// On Windows: SHA-256 hash of ComputerName + DeviceId + Cores + Memory.
   static Future<String> getDeviceId() async {
     if (_cachedDeviceId != null) return _cachedDeviceId!;
     try {
@@ -62,42 +60,22 @@ class DeviceUtils {
   }
 
   /// Build a multi-factor Windows fingerprint by combining:
-  /// 1. MachineGuid (registry)
-  /// 2. ComputerName (device_info_plus)
-  /// 3. CPU ProcessorNameString (registry)
-  /// 4. First disk serial number (WMI via PowerShell)
+  /// 1. ComputerName (device_info_plus)
+  /// 2. DeviceId (device_info_plus)
+  /// 3. NumberOfCores (device_info_plus)
+  /// 4. Disk serial number via PowerShell (fallback)
   static Future<String> _buildWindowsFingerprint() async {
     final components = <String>[];
 
-    // Factor 1: MachineGuid (registry)
-    try {
-      final machineGuid = _readRegistry(
-        RegistryHive.localMachine,
-        r'SOFTWARE\Microsoft\Cryptography',
-        'MachineGuid',
-      );
-      if (machineGuid != null) components.add('MG:$machineGuid');
-    } catch (_) {}
-
-    // Factor 2: ComputerName from device_info_plus
     try {
       final windowsInfo = await _deviceInfo.windowsInfo;
       components.add('CN:${windowsInfo.computerName}');
-      // Also use the built-in deviceId as a base
       components.add('DI:${windowsInfo.deviceId}');
+      components.add('CORES:${windowsInfo.numberOfCores}');
+      components.add('MEM:${windowsInfo.systemMemoryInMegabytes}');
     } catch (_) {}
 
-    // Factor 3: CPU Processor info from registry
-    try {
-      final cpu = _readRegistry(
-        RegistryHive.localMachine,
-        r'HARDWARE\DESCRIPTION\System\CentralProcessor\0',
-        'ProcessorNameString',
-      );
-      if (cpu != null) components.add('CPU:${cpu.trim()}');
-    } catch (_) {}
-
-    // Factor 4: Disk serial number via PowerShell (non-blocking)
+    // Disk serial number via PowerShell (non-blocking fallback)
     try {
       final result = await Process.run(
         'powershell',
@@ -111,7 +89,6 @@ class DeviceUtils {
     } catch (_) {}
 
     if (components.isEmpty) {
-      // Last resort: use a stored UUID
       final prefs = await SharedPreferences.getInstance();
       String? stored = prefs.getString('fallback_device_id');
       if (stored == null) {
@@ -121,33 +98,19 @@ class DeviceUtils {
       return stored;
     }
 
-    // Hash all components together → stable, unforgeable ID
     final raw = components.join('|');
     final digest = sha256.convert(utf8.encode(raw));
     return digest.toString();
   }
 
-  // ── 4. Anti-VM Detection ───────────────────────────────────────────────────
+  // ── 2. Anti-VM Detection ───────────────────────────────────────────────────
 
   /// Returns true if the app is running inside a Virtual Machine.
-  /// Disabled VM detection to prevent false positives on physical Windows systems.
   static Future<bool> isRunningInVM() async {
     return false;
   }
 
-  /// Helper: read a string value from the Windows registry.
-  static String? _readRegistry(RegistryHive hive, String path, String key) {
-    try {
-      final regKey = Registry.openPath(hive, path: path);
-      final value = regKey.getValueAsString(key);
-      regKey.close();
-      return value;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // ── Device Name ────────────────────────────────────────────────────────────
+  // ── 3. Device Name ────────────────────────────────────────────────────────────
 
   /// Get device name/model
   static Future<String> getDeviceName() async {
@@ -203,13 +166,7 @@ class DeviceUtils {
       }
       if (defaultTargetPlatform == TargetPlatform.windows) {
         final windowsInfo = await _deviceInfo.windowsInfo;
-        final cpu = _readRegistry(
-          RegistryHive.localMachine,
-          r'HARDWARE\DESCRIPTION\System\CentralProcessor\0',
-          'ProcessorNameString',
-        );
-        final cpuStr = cpu != null ? ' | CPU: ${cpu.trim()}' : '';
-        return 'Windows (${windowsInfo.numberOfCores} Cores)$cpuStr';
+        return 'Windows (${windowsInfo.numberOfCores} Cores | ${windowsInfo.systemMemoryInMegabytes}MB RAM)';
       }
       return 'Native Terminal';
     } catch (_) {
