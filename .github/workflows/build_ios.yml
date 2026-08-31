@@ -32,7 +32,7 @@ jobs:
       - name: Build iOS Application (Release)
         run: |
           cd orderflow
-          flutter build ios --release --no-codesign
+          flutter build ios --release --no-codesign -v > build_log.txt 2>&1 || (echo "=== XCODE BUILD ERROR LOG ===" && tail -n 120 build_log.txt && exit 1)
           cd build/ios/iphoneos
           mkdir -p Payload
           cp -r Runner.app Payload/

@@ -31,7 +31,7 @@ jobs:
       - name: Build macOS Application (Release)
         run: |
           cd orderflow
-          flutter build macos --release
+          flutter build macos --release -v > build_log.txt 2>&1 || (echo "=== MACOS BUILD ERROR LOG ===" && tail -n 120 build_log.txt && exit 1)
 
       - name: Create DMG Disk Image Installer
         run: |
