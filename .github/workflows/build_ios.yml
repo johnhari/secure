@@ -33,34 +33,31 @@ jobs:
       - name: Build iOS Application (Release)
         run: |
           cd orderflow
-          flutter build ios --release --no-codesign -v 2>&1 | tee build_ios_log.txt
+          flutter build ios --release --no-codesign
           
-          echo "=== FINDING COMPILED APP ==="
-          find . -name "*.app" -type d || true
-          
-          APP_PATH=$(find build -name "Runner.app" -type d 2>/dev/null | head -n 1)
-          if [ -z "$APP_PATH" ]; then
-            APP_PATH=$(find ~/Library/Developer/Xcode/DerivedData -name "Runner.app" -type d 2>/dev/null | head -n 1)
+          # Locate the complete compiled Runner.app
+          if [ -d "build/ios/iphoneos/Runner.app" ]; then
+            APP_DIR="build/ios/iphoneos/Runner.app"
+          elif [ -d "build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app" ]; then
+            APP_DIR="build/ios/archive/Runner.xcarchive/Products/Applications/Runner.app"
+          else
+            APP_DIR=$(find . -name "Runner.app" -type d | head -n 1)
           fi
           
-          echo "Selected Runner.app: $APP_PATH"
-          mkdir -p build/ios/ipa_output/Payload
-          cp -R "$APP_PATH" build/ios/ipa_output/Payload/
-          cd build/ios/ipa_output
-          zip -r Orderflow-iOS-Release.ipa Payload
+          echo "=== PACKAGING IPA FROM: $APP_DIR ==="
+          rm -rf ipa_build
+          mkdir -p ipa_build/Payload
+          cp -R "$APP_DIR" ipa_build/Payload/
+          cd ipa_build
+          zip -r ../Orderflow-iOS-Release.ipa Payload
+          cd ..
+          
+          echo "=== FINAL IPA DETAILS ==="
           ls -lh Orderflow-iOS-Release.ipa
 
-      - name: Upload Build Log (Always)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: iOS-Build-Log
-          path: orderflow/build_ios_log.txt
-
       - name: Upload iOS IPA Artifact
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: Orderflow-iOS-Release-IPA
-          path: orderflow/build/ios/ipa_output/Orderflow-iOS-Release.ipa
+          path: orderflow/Orderflow-iOS-Release.ipa
           if-no-files-found: error
