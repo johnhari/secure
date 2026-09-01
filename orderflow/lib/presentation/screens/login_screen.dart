@@ -130,16 +130,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   void _navigateToChart() {
-    Navigator.of(context).pushReplacement(
-      PageRouteBuilder(
-        pageBuilder: (context, animation, secondaryAnimation) =>
-            const ChartScreen(),
-        transitionsBuilder: (context, animation, secondaryAnimation, child) {
-          return FadeTransition(opacity: animation, child: child);
-        },
-        transitionDuration: const Duration(milliseconds: 300),
-      ),
-    );
+    if (!mounted) return;
+    Navigator.of(context).pushNamedAndRemoveUntil('/chart', (route) => false);
   }
 
   void _showPendingApprovalDialog() {
@@ -201,7 +193,65 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  @override
+  Widget _buildSubmitButton() {
+    String buttonText;
+    switch (_authMode) {
+      case AuthMode.login:
+        buttonText = 'AUTHORIZE ACCESS';
+        break;
+      case AuthMode.register:
+        buttonText = 'CREATE ACCOUNT';
+        break;
+      case AuthMode.forgotPassword:
+        buttonText = 'REQUEST RESET';
+        break;
+    }
+
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppTheme.primaryCyan, AppTheme.accentPurple],
+        ),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryCyan.withValues(alpha: 0.3),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: _isLoading ? null : _submit,
+          child: Center(
+            child: _isLoading
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : Text(
+                    buttonText,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }@override
   Widget build(BuildContext context) {
     // Responsive Scaling Logic
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -506,74 +556,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
-  Widget _buildSubmitButton() {
-    String buttonText;
-    switch (_authMode) {
-      case AuthMode.login:
-        buttonText = 'AUTHORIZE ACCESS';
-        break;
-      case AuthMode.register:
-        buttonText = 'CREATE ACCOUNT';
-        break;
-      case AuthMode.forgotPassword:
-        buttonText = 'REQUEST RESET';
-        break;
-    }
 
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      width: double.infinity,
-      height: 56,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _submit,
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey.withValues(alpha: 0.3),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 0,
-          padding: EdgeInsets.zero,
-        ),
-        child: Ink(
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppTheme.primaryCyan, AppTheme.accentPurple],
-            ),
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: AppTheme.primaryCyan.withValues(alpha: 0.3),
-                blurRadius: 15,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Container(
-            alignment: Alignment.center,
-            child: _isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : Text(
-                    buttonText,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-          ),
-        ),
-      ),
-    );
-  }
 
 
 
