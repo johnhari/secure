@@ -95,6 +95,7 @@
       50% { opacity: 0.4; }
     }
   </style>
+  <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
   <script src="flutter.js" defer></script>
 </head>
 <body>
@@ -118,6 +119,14 @@
       if (diag) diag.innerText = msg;
     }
 
+    function removeSplashLoader() {
+      const loader = document.getElementById('loading-indicator');
+      if (loader) {
+        loader.style.opacity = '0';
+        setTimeout(() => { if (loader && loader.parentElement) loader.remove(); }, 300);
+      }
+    }
+
     window.addEventListener('load', function(ev) {
       logDiag('🚀 Starting BIG SHOT...');
       
@@ -135,7 +144,9 @@
             renderer: renderer,
           }).then(function(appRunner) {
             logDiag('✨ Engine Ready. Running App...');
-            appRunner.runApp();
+            return appRunner.runApp();
+          }).then(function() {
+            setTimeout(removeSplashLoader, 150);
           }).catch(function(e) {
             console.error('❌ Flutter Engine Init Failed:', e);
             logDiag('❌ Init Failed. Retrying with HTML Renderer...');
@@ -143,7 +154,9 @@
             engineInitializer.initializeEngine({
               renderer: "html",
             }).then(function(appRunner) {
-              appRunner.runApp();
+              return appRunner.runApp();
+            }).then(function() {
+              setTimeout(removeSplashLoader, 150);
             }).catch(function(err) {
               const statusText = document.getElementById('status-text');
               if (statusText) statusText.innerText = 'Critical Error - Please Refresh';
