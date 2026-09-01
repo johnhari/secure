@@ -33,6 +33,8 @@ jobs:
       - name: Build iOS Application (Release)
         run: |
           cd orderflow
+          # Strip -G flag from all xcconfig files (unsupported by new Xcode linker)
+          find ios/Pods -name "*.xcconfig" -exec sed -i '' 's/ -G / /g; s/ -G$//g; s/^-G //g' {} + 2>/dev/null || true
           flutter build ios --release --no-codesign
           
           # Find the compiled Runner.app

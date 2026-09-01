@@ -49,21 +49,26 @@ post_install do |installer|
       config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
       config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
 
-      # Strip unsupported -G flag from all build settings
+      # Strip unsupported -G flag from build settings
       ['OTHER_CFLAGS', 'OTHER_LDFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_SWIFT_FLAGS'].each do |key|
-        if config.build_settings[key].is_a?(String)
-          config.build_settings[key] = config.build_settings[key].gsub(/(^|\s)-G(\s|$)/, '\1\2').strip
-        elsif config.build_settings[key].is_a?(Array)
-          config.build_settings[key] = config.build_settings[key].reject { |f| f == '-G' }
+        val = config.build_settings[key]
+        if val.is_a?(String)
+          config.build_settings[key] = val.split(' ').reject { |f| f == '-G' }.join(' ')
+        elsif val.is_a?(Array)
+          config.build_settings[key] = val.reject { |f| f == '-G' }
         end
       end
+    end
+  end
 
-      # Strip -G from xcconfig files
-      xcconfig_path = config.base_configuration_reference&.real_path
-      if xcconfig_path && File.exist?(xcconfig_path)
-        xcconfig = File.read(xcconfig_path)
-        new_xcconfig = xcconfig.gsub(/(^|\s)-G(\s|$)/, '\1\2')
-        File.open(xcconfig_path, 'w') { |file| file << new_xcconfig }
+  # Strip -G from ALL xcconfig files in Pods directory
+  pods_dir = File.join(File.dirname(__FILE__), 'Pods')
+  if Dir.exist?(pods_dir)
+    Dir.glob(File.join(pods_dir, '**', '*.xcconfig')).each do |xcconfig_path|
+      content = File.read(xcconfig_path)
+      if content.include?('-G')
+        cleaned = content.gsub(/\s-G(?=\s|$)/, '').gsub(/^-G(?=\s|$)/, '')
+        File.open(xcconfig_path, 'w') { |f| f << cleaned }
       end
     end
   end
