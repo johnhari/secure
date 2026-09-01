@@ -21,7 +21,7 @@
     ],
     "headers": [
       {
-        "source": "/index.html",
+        "source": "/**",
         "headers": [
           {
             "key": "Cache-Control",
@@ -30,43 +30,7 @@
         ]
       },
       {
-        "source": "/",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "max-age=0, no-cache, no-store, must-revalidate"
-          }
-        ]
-      },
-      {
-        "source": "/terminal/index.html",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "max-age=0, no-cache, no-store, must-revalidate"
-          }
-        ]
-      },
-      {
-        "source": "/terminal/flutter_service_worker.js",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "max-age=0, no-cache, no-store, must-revalidate"
-          }
-        ]
-      },
-      {
-        "source": "/terminal/flutter_bootstrap.js",
-        "headers": [
-          {
-            "key": "Cache-Control",
-            "value": "max-age=0, no-cache, no-store, must-revalidate"
-          }
-        ]
-      },
-      {
-        "source": "/terminal/version.json",
+        "source": "/terminal/**",
         "headers": [
           {
             "key": "Cache-Control",
