@@ -96,7 +96,7 @@
     }
   </style>
   <script src="https://unpkg.com/lightweight-charts@4.2.0/dist/lightweight-charts.standalone.production.js"></script>
-  <script src="flutter.js" defer></script>
+  <script src="flutter_bootstrap.js" async></script>
 </head>
 <body>
   <div id="loading-indicator" class="loader-container">
@@ -127,45 +127,16 @@
       }
     }
 
-    window.addEventListener('load', function(ev) {
-      logDiag('🚀 Starting BIG SHOT...');
-      
-      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-      const renderer = isMobile ? 'canvaskit' : 'html';
-      
-      logDiag('📱 Platform: ' + (isMobile ? 'Mobile' : 'Desktop') + ' | Renderer: ' + renderer);
-
-      _flutter.loader.load({
-        onEntrypointLoaded: function(engineInitializer) {
-          logDiag('📦 Engine Loaded. Initializing...');
-          
-          engineInitializer.initializeEngine({
-            useColorEmoji: true,
-            renderer: renderer,
-          }).then(function(appRunner) {
-            logDiag('✨ Engine Ready. Running App...');
-            return appRunner.runApp();
-          }).then(function() {
-            setTimeout(removeSplashLoader, 150);
-          }).catch(function(e) {
-            console.error('❌ Flutter Engine Init Failed:', e);
-            logDiag('❌ Init Failed. Retrying with HTML Renderer...');
-            
-            engineInitializer.initializeEngine({
-              renderer: "html",
-            }).then(function(appRunner) {
-              return appRunner.runApp();
-            }).then(function() {
-              setTimeout(removeSplashLoader, 150);
-            }).catch(function(err) {
-              const statusText = document.getElementById('status-text');
-              if (statusText) statusText.innerText = 'Critical Error - Please Refresh';
-              logDiag('💀 Critical Failure: ' + err);
-            });
-          });
-        }
-      });
+    // Safety timeout: Ensure loader is removed once Flutter is running
+    window.addEventListener('flutter-first-frame', function() {
+      logDiag('✨ Flutter First Frame Rendered');
+      removeSplashLoader();
     });
+
+    // Fallback timer to remove HTML loader once Flutter mounts
+    setTimeout(function() {
+      removeSplashLoader();
+    }, 2500);
   </script>
 
   <script>
