@@ -59,6 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   void _switchMode(AuthMode mode) {
     HapticFeedback.lightImpact();
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
     setState(() {
       _authMode = mode;
       _formKey.currentState?.reset();
@@ -602,9 +603,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         ),
         GestureDetector(
           onTap: () => _switchMode(
-              isLogin || isForgotPassword ? AuthMode.register : AuthMode.login),
+              isLogin ? AuthMode.register : AuthMode.login),
           child: Text(
-            isForgotPassword ? 'SIGN UP' : (isLogin ? 'SIGN UP' : 'LOGIN'),
+            isForgotPassword ? 'LOGIN' : (isLogin ? 'SIGN UP' : 'LOGIN'),
             style: const TextStyle(
               color: AppTheme.primaryCyan,
               fontWeight: FontWeight.w900,
