@@ -113,10 +113,10 @@ class AuthenticationDataSource {
         
         sessionSnapshot = await sessionRef.get();
         
-        if (sessionSnapshot.exists && !_isAdmin && sessionSnapshot.value is Map) {
-          final data = sessionSnapshot.value as Map;
+        final data = _extractMap(sessionSnapshot.value);
+        if (data != null && !_isAdmin) {
           final platformRaw = data[platformKey];
-          final platformData = platformRaw is Map ? platformRaw : null;
+          final platformData = _extractMap(platformRaw);
           final activeDeviceId = (platformData != null ? platformData['activeDeviceId'] : data['activeDeviceId'])?.toString();
           
           if (activeDeviceId != null && activeDeviceId != currentDeviceId) {
@@ -405,6 +405,25 @@ class AuthenticationDataSource {
     }
   }
 
+  Map<String, dynamic>? _extractMap(dynamic value) {
+    if (value == null) return null;
+    if (value is Map) {
+      final Map<String, dynamic> result = {};
+      value.forEach((k, v) => result[k.toString()] = v);
+      return result;
+    }
+    try {
+      final dynamic dyn = value;
+      if (dyn is Iterable) return null;
+      final Map<String, dynamic> result = {};
+      dyn.forEach((dynamic k, dynamic v) {
+        result[k.toString()] = v;
+      });
+      return result;
+    } catch (_) {}
+    return null;
+  }
+
   /// Start listening for session invalidation for already logged in users
   /// Admin users skip this entirely — they are allowed on multiple devices.
   Future<void> startSessionListener({String? sessionId}) async {
@@ -422,8 +441,8 @@ class AuthenticationDataSource {
       final platformSessionRef = _database.ref('${AppConstants.sessionsPath}/${user.uid}/$platformKey');
       final snapshot = await platformSessionRef.get();
       
-      if (snapshot.exists && snapshot.value is Map) {
-        final data = snapshot.value as Map;
+      final data = _extractMap(snapshot.value);
+      if (data != null) {
         final deviceId = await DeviceUtils.getDeviceId();
         final activeDeviceId = data['activeDeviceId']?.toString();
         
@@ -448,12 +467,12 @@ class AuthenticationDataSource {
         // Fallback: check root session node if platform node not created yet
         final sessionRef = _database.ref('${AppConstants.sessionsPath}/${user.uid}');
         final mainSnap = await sessionRef.get();
-        if (mainSnap.exists && mainSnap.value is Map) {
-          final data = mainSnap.value as Map;
+        final mainData = _extractMap(mainSnap.value);
+        if (mainData != null) {
           final deviceId = await DeviceUtils.getDeviceId();
-          final activeDeviceId = data['activeDeviceId']?.toString();
+          final activeDeviceId = mainData['activeDeviceId']?.toString();
           if (activeDeviceId == deviceId) {
-            final mySessionId = data['sessionId']?.toString();
+            final mySessionId = mainData['sessionId']?.toString();
             if (mySessionId != null) {
               _currentSessionId = mySessionId;
               _listenForSessionInvalidation(user.uid, mySessionId);
@@ -485,9 +504,9 @@ class AuthenticationDataSource {
     final platformSessionRef = _database.ref('${AppConstants.sessionsPath}/$uid/$platformKey');
 
     _sessionListener = platformSessionRef.onValue.listen((event) {
-      if (event.snapshot.value == null || event.snapshot.value is! Map) return;
+      final data = _extractMap(event.snapshot.value);
+      if (data == null) return;
 
-      final data = event.snapshot.value as Map;
       final sessionId = data['sessionId']?.toString();
 
       // WEB STABILITY: If we just hijacked the session, our local currentSessionId 
@@ -546,8 +565,8 @@ class AuthenticationDataSource {
       // Use a timeout to prevent hanging on poor connections
       final snapshot = await platformSessionRef.get().timeout(const Duration(seconds: 10));
 
-      if (snapshot.exists && snapshot.value is Map) {
-        final data = snapshot.value as Map;
+      final data = _extractMap(snapshot.value);
+      if (data != null) {
         final activeDeviceId = data['activeDeviceId']?.toString();
 
         if (activeDeviceId == deviceId) {
@@ -557,9 +576,9 @@ class AuthenticationDataSource {
         // Check top-level session node for backward compatibility
         final sessionRef = _database.ref('${AppConstants.sessionsPath}/${user.uid}');
         final mainSnapshot = await sessionRef.get().timeout(const Duration(seconds: 5));
-        if (mainSnapshot.exists && mainSnapshot.value is Map) {
-          final data = mainSnapshot.value as Map;
-          final activeDeviceId = data['activeDeviceId']?.toString();
+        final mainData = _extractMap(mainSnapshot.value);
+        if (mainData != null) {
+          final activeDeviceId = mainData['activeDeviceId']?.toString();
           if (activeDeviceId == deviceId) {
             return true;
           }

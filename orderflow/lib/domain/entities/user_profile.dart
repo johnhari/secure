@@ -48,6 +48,7 @@ class UserProfile extends Equatable {
 
   static DateTime? _parseDateTime(dynamic value) {
     if (value == null) return null;
+    if (value is DateTime) return value;
     if (value is Timestamp) {
       return value.toDate();
     }
@@ -55,12 +56,27 @@ class UserProfile extends Equatable {
       return DateTime.tryParse(value);
     }
     if (value is int) {
+      if (value < 10000000000 && value > 0) return DateTime.fromMillisecondsSinceEpoch(value * 1000);
       return DateTime.fromMillisecondsSinceEpoch(value);
     }
     try {
-      if (value.runtimeType.toString() == 'Timestamp') {
-        return (value as dynamic).toDate();
-      }
+      final dynamic dyn = value;
+      try {
+        final res = dyn.toDate();
+        if (res is DateTime) return res;
+      } catch (_) {}
+      try {
+        final sec = dyn.seconds;
+        if (sec is num) {
+          return DateTime.fromMillisecondsSinceEpoch((sec * 1000).toInt());
+        }
+      } catch (_) {}
+      try {
+        final ms = dyn.millisecondsSinceEpoch;
+        if (ms is num) {
+          return DateTime.fromMillisecondsSinceEpoch(ms.toInt());
+        }
+      } catch (_) {}
     } catch (_) {}
     return null;
   }
