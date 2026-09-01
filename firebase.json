@@ -13,7 +13,7 @@
   },
   "hosting": {
     "target": "marketing",
-    "public": "orderflow/build/web",
+    "public": "marketing",
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -39,7 +39,7 @@
         ]
       },
       {
-        "source": "/flutter_service_worker.js",
+        "source": "/terminal/index.html",
         "headers": [
           {
             "key": "Cache-Control",
@@ -48,7 +48,7 @@
         ]
       },
       {
-        "source": "/flutter_bootstrap.js",
+        "source": "/terminal/flutter_service_worker.js",
         "headers": [
           {
             "key": "Cache-Control",
@@ -57,7 +57,16 @@
         ]
       },
       {
-        "source": "/version.json",
+        "source": "/terminal/flutter_bootstrap.js",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "max-age=0, no-cache, no-store, must-revalidate"
+          }
+        ]
+      },
+      {
+        "source": "/terminal/version.json",
         "headers": [
           {
             "key": "Cache-Control",
@@ -67,6 +76,18 @@
       }
     ],
     "rewrites": [
+      {
+        "source": "/terminal/**",
+        "destination": "/terminal/index.html"
+      },
+      {
+        "source": "/login",
+        "destination": "/terminal/index.html"
+      },
+      {
+        "source": "/chart",
+        "destination": "/terminal/index.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"
