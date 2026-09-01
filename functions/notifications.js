@@ -254,12 +254,42 @@ exports.broadcastOrderflowUpdate = async (candleData) => {
                 notification: {
                     sound: 'default',
                     channelId: 'heavy_activity_alerts',
+                    priority: 'high',
+                    defaultSound: true,
+                    defaultVibrateTimings: true,
+                }
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        alert: {
+                            title,
+                            body,
+                        },
+                        sound: 'default',
+                        badge: 1,
+                        'content-available': 1
+                    }
+                },
+                headers: {
+                    'apns-priority': '10',
+                    'apns-push-type': 'alert'
+                }
+            },
+            webpush: {
+                notification: {
+                    title,
+                    body,
+                    icon: '/icons/Icon-192.png',
+                    badge: '/icons/Icon-192.png',
+                    vibrate: [200, 100, 200],
+                    requireInteraction: true,
                 }
             }
         };
 
         await admin.messaging().send(message);
-        console.log(`[FCM] Broadcast notification sent to topic: ${topic}`);
+        console.log(`[FCM] Broadcast notification sent to topic: ${topic} for Mac, iOS, Android, Windows & Web`);
 
     } catch (error) {
         console.error('[FCM] Error in broadcastOrderflowUpdate:', error.message);

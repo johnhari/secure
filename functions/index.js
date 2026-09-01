@@ -2,7 +2,9 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin
-admin.initializeApp();
+admin.initializeApp({
+    databaseURL: 'https://mst7-3fb55-default-rtdb.firebaseio.com'
+});
 
 // Import function modules
 const auth = require('./auth');
