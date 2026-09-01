@@ -33,6 +33,8 @@ jobs:
       - name: Build macOS Application
         run: |
           cd orderflow
+          # Strip -G flag from all xcconfig files (unsupported by new Xcode linker)
+          find macos/Pods -name "*.xcconfig" -exec sed -i '' 's/ -G / /g; s/ -G$//g; s/^-G //g' {} + 2>/dev/null || true
           flutter build macos --release
           
           # Find the compiled orderflow.app
