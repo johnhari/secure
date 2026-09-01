@@ -78,21 +78,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
       switch (_authMode) {
         case AuthMode.login:
-          final sessionMessage = await ref.read(authProvider.notifier).signIn(email, password);
-          if (mounted) {
-            if (sessionMessage != null) {
-              _showSnackBar(sessionMessage, isSuccess: true);
-            }
-            // Check if we are actually authenticated now
-            if (ref.read(authProvider).isAuthenticated) {
-              _navigateToChart();
-            } else if (ref.read(authProvider).error != null) {
-              final error = ref.read(authProvider).error!;
-              if (error == 'PENDING_APPROVAL') {
-                _showPendingApprovalDialog();
-              } else {
-                _showSnackBar(error);
+          try {
+            final sessionMessage = await ref.read(authProvider.notifier).signIn(email, password);
+            if (mounted) {
+              if (sessionMessage != null && sessionMessage != 'PENDING_APPROVAL') {
+                _showSnackBar(sessionMessage, isSuccess: true);
               }
+              if (ref.read(authProvider).isAuthenticated) {
+                _navigateToChart();
+              }
+            }
+          } catch (e) {
+            debugPrint("LOGIN SUBMIT ERROR: $e");
+            if (mounted) {
+              final clean = e.toString().replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('minified:', '').trim();
+              _showSnackBar(clean.isNotEmpty ? clean : 'Invalid credentials. Please try again.');
             }
           }
           break;
@@ -123,7 +123,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           break;
       }
     } catch (e) {
-      _showSnackBar(e.toString().replaceAll(RegExp(r'\[.*?\]'), '').trim());
+      _showSnackBar(e.toString().replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('minified:', '').trim());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -208,7 +208,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     final double scaleFactor = (screenWidth / 390).clamp(0.8, 1.2);
 
     ref.listen(authProvider, (previous, next) {
-      if (next.error != null && next.status == AuthStatus.unauthenticated) {
+      if (next.isAuthenticated) {
+        _navigateToChart();
+      } else if (next.error != null && next.status == AuthStatus.unauthenticated) {
         if (next.error == 'PENDING_APPROVAL') {
           _showPendingApprovalDialog();
         } else {
