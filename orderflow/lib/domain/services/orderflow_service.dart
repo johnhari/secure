@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../core/utils/map_utils.dart';
 import '../entities/candle.dart';
 import '../entities/ghost_order.dart';
 import '../../data/datasources/local_cache_datasource.dart';
@@ -453,7 +454,7 @@ class OrderflowService {
           'borderColor': docData['borderColor'] as String? ?? 'DEFAULT',
           'expiryTime': docData['expiryTime'] as int?,
           'injectedBy': docData['updatedBy'] as String?,
-          'footprint': docData['footprint'] as Map<String, dynamic>?,
+          'footprint': MapUtils.extractMap(docData['footprint']),
           'adminOnly': adminOnly,
         };
       }

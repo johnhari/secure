@@ -1,5 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
 import '../models/candle_model.dart';
+import '../../core/utils/map_utils.dart';
 
 class FirebaseMarketDataSource {
   final FirebaseDatabase _database;
@@ -17,14 +18,14 @@ class FirebaseMarketDataSource {
 
       if (!snapshot.exists) return [];
 
-      final raw = snapshot.value as Map<dynamic, dynamic>;
+      final raw = MapUtils.extractMap(snapshot.value);
+      if (raw == null) return [];
       final List<CandleModel> candles = [];
 
       raw.forEach((key, value) {
-        if (value is! Map) return;
+        final m = MapUtils.extractMap(value);
+        if (m == null) return;
         try {
-          final m = Map<String, dynamic>.from(value as Map);
-
           // ── Backward-compat: old records may lack timeStart / timeEnd ──
           // The RTDB key is the 5-minute-aligned ms epoch; fall back to it.
           if (m['timeStart'] == null) {
@@ -57,8 +58,7 @@ class FirebaseMarketDataSource {
         .ref('market_data/$symbol/candles')
         .onChildChanged
         .map((event) {
-      final raw = Map<String, dynamic>.from(
-          event.snapshot.value as Map<dynamic, dynamic>);
+      final raw = MapUtils.extractMap(event.snapshot.value) ?? <String, dynamic>{};
       if (raw['timeStart'] == null) {
         final ts = raw['timestamp'] as int? ?? 0;
         raw['timeStart'] = ts;
@@ -87,12 +87,16 @@ class FirebaseMarketDataSource {
         return <String, Map<String, dynamic>>{};
       }
       try {
-        final val = event.snapshot.value as Map<dynamic, dynamic>;
-        return val.map((k, v) {
-          final symbolKey = k.toString();
-          final dataMap = Map<String, dynamic>.from(v as Map);
-          return MapEntry(symbolKey, dataMap);
+        final val = MapUtils.extractMap(event.snapshot.value);
+        if (val == null) return <String, Map<String, dynamic>>{};
+        final Map<String, Map<String, dynamic>> result = {};
+        val.forEach((k, v) {
+          final dataMap = MapUtils.extractMap(v);
+          if (dataMap != null) {
+            result[k.toString()] = dataMap;
+          }
         });
+        return result;
       } catch (e) {
         print('FirebaseMarketDataSource [Heatmap Stream Error]: $e');
         return <String, Map<String, dynamic>>{};
@@ -107,7 +111,7 @@ class FirebaseMarketDataSource {
         return null;
       }
       try {
-        return Map<String, dynamic>.from(event.snapshot.value as Map);
+        return MapUtils.extractMap(event.snapshot.value);
       } catch (e) {
         print('FirebaseMarketDataSource [Signal Stream Error]: $e');
         return null;
@@ -126,11 +130,13 @@ class FirebaseMarketDataSource {
 
       if (!snapshot.exists) return [];
 
-      final raw = snapshot.value as Map<dynamic, dynamic>;
+      final raw = MapUtils.extractMap(snapshot.value);
+      if (raw == null) return [];
       final List<Map<String, dynamic>> history = [];
       raw.forEach((key, value) {
-        if (value is Map) {
-          history.add(Map<String, dynamic>.from(value));
+        final m = MapUtils.extractMap(value);
+        if (m != null) {
+          history.add(m);
         }
       });
 

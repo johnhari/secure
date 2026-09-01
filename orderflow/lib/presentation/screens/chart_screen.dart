@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/map_utils.dart';
 import 'package:syncfusion_flutter_charts/charts.dart';
 import 'package:intl/intl.dart' as intl;
 import 'package:screen_secure/screen_secure.dart';
@@ -5377,7 +5378,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
       if (!candleIndexMap.containsKey(candle.candleKey)) continue;
       final String? activeKey = _findActiveOrderflowKey(candle);
       if (activeKey != null) {
-        final rawFootprint = orderflowData[activeKey]!['footprint'] as Map<String, dynamic>?;
+        final rawFootprint = MapUtils.extractMap(orderflowData[activeKey]?['footprint']);
         if (rawFootprint != null && rawFootprint.isNotEmpty) {
           // visibleRangeFactor check from earlier loop
           final visibleRangeFactor = (_yVisibleMax != null && _yVisibleMin != null) 
@@ -5385,13 +5386,17 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
               : 0.0;
               
           if (visibleRangeFactor > 0 && visibleRangeFactor < 200) {
-             final footprint = rawFootprint.map((k, v) => MapEntry(
-              double.parse(k),
-              PriceLevelData(
-                buyVolume: _parseNum(v['buyVolume']).toInt(),
-                sellVolume: _parseNum(v['sellVolume']).toInt(),
-              ),
-            ));
+             final Map<double, PriceLevelData> footprint = {};
+             rawFootprint.forEach((k, v) {
+               final double? price = double.tryParse(k.toString());
+               final levelData = MapUtils.extractMap(v);
+               if (price != null && levelData != null) {
+                 footprint[price] = PriceLevelData(
+                   buyVolume: _parseNum(levelData['buyVolume']).toInt(),
+                   sellVolume: _parseNum(levelData['sellVolume']).toInt(),
+                 );
+               }
+             });
 
             backgroundAnnotations.add(CartesianChartAnnotation(
               widget: _buildFootprintOverlay(candle, footprint),

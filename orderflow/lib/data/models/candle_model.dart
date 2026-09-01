@@ -1,4 +1,5 @@
 import '../../domain/entities/candle.dart';
+import '../../core/utils/map_utils.dart';
 
 class CandleModel extends Candle {
   const CandleModel({
@@ -45,17 +46,29 @@ class CandleModel extends Candle {
       injectedBy: json['injectedBy'] as String?,
       isClosed: json['isClosed'] as bool? ?? false,
       imbalances: (json['imbalances'] as List<dynamic>?)
-              ?.map((e) => PriceImbalanceModel.fromJson(e as Map<String, dynamic>))
+              ?.map((e) {
+                final m = MapUtils.extractMap(e);
+                return m != null ? PriceImbalanceModel.fromJson(m) : null;
+              })
+              .whereType<PriceImbalanceModel>()
               .toList() ??
           const [],
-      footprint: (json['footprint'] as Map<String, dynamic>?)?.map(
-            (k, v) => MapEntry(
-              double.parse(k),
-              PriceLevelDataModel.fromJson(v as Map<String, dynamic>),
-            ),
-          ) ??
-          const {},
+      footprint: _parseFootprint(json['footprint']),
     );
+  }
+
+  static Map<double, PriceLevelDataModel> _parseFootprint(dynamic raw) {
+    final map = MapUtils.extractMap(raw);
+    if (map == null || map.isEmpty) return const {};
+    final Map<double, PriceLevelDataModel> result = {};
+    map.forEach((k, v) {
+      final double? price = double.tryParse(k.toString());
+      final data = MapUtils.extractMap(v);
+      if (price != null && data != null) {
+        result[price] = PriceLevelDataModel.fromJson(data);
+      }
+    });
+    return result;
   }
 
   factory CandleModel.fromJson(Map<String, dynamic> json) {
@@ -79,16 +92,14 @@ class CandleModel extends Candle {
       injectedBy: json['injectedBy'] as String?,
       isClosed: json['isClosed'] as bool? ?? false,
       imbalances: (json['imbalances'] as List<dynamic>?)
-              ?.map((e) => PriceImbalanceModel.fromJson(e as Map<String, dynamic>))
+              ?.map((e) {
+                final m = MapUtils.extractMap(e);
+                return m != null ? PriceImbalanceModel.fromJson(m) : null;
+              })
+              .whereType<PriceImbalanceModel>()
               .toList() ??
           const [],
-      footprint: (json['footprint'] as Map<String, dynamic>?)?.map(
-            (k, v) => MapEntry(
-              double.parse(k),
-              PriceLevelDataModel.fromJson(v as Map<String, dynamic>),
-            ),
-          ) ??
-          const {},
+      footprint: _parseFootprint(json['footprint']),
     );
   }
 

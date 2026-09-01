@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/utils/map_utils.dart';
 import '../../data/models/candle_model.dart';
 import '../../data/repositories/candle_repository.dart';
 import '../../domain/entities/candle.dart';
@@ -489,16 +490,17 @@ class CandleStreamNotifier extends StateNotifier<CandleStreamState> {
       if (match != null && match.isNotEmpty) {
         // Parse footprint if present
         Map<double, PriceLevelData>? footprint;
-        final rawFootprint = match['footprint'] as Map<dynamic, dynamic>?;
+        final rawFootprint = MapUtils.extractMap(match['footprint']);
         if (rawFootprint != null && rawFootprint.isNotEmpty) {
           footprint = {};
           rawFootprint.forEach((k, v) {
-            if (v is Map) {
+            final levelMap = MapUtils.extractMap(v);
+            if (levelMap != null) {
               final double? price = double.tryParse(k.toString());
               if (price != null) {
                 footprint![price] = PriceLevelData(
-                  buyVolume: (v['buyVolume'] as num?)?.toInt() ?? 0,
-                  sellVolume: (v['sellVolume'] as num?)?.toInt() ?? 0,
+                  buyVolume: (levelMap['buyVolume'] as num?)?.toInt() ?? 0,
+                  sellVolume: (levelMap['sellVolume'] as num?)?.toInt() ?? 0,
                 );
               }
             }

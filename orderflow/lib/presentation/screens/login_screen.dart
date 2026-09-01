@@ -100,15 +100,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         case AuthMode.register:
           final name = _nameController.text.trim();
           final phone = _phoneController.text.trim();
-          final verificationSent = await ref.read(authProvider.notifier).register(
-            email: email,
-            password: password,
-            name: name,
-            phoneNumber: phone,
-          );
-          if (verificationSent) {
-            _showSnackBar('Verification email sent to $email! Please verify to login.', isSuccess: true);
-            _switchMode(AuthMode.login);
+          try {
+            final verificationSent = await ref.read(authProvider.notifier).register(
+              email: email,
+              password: password,
+              name: name,
+              phoneNumber: phone,
+            );
+            if (verificationSent) {
+              _showSnackBar('Verification email sent to $email! Please verify to login.', isSuccess: true);
+              _switchMode(AuthMode.login);
+            }
+          } catch (e) {
+            debugPrint("REGISTER SUBMIT ERROR: $e");
+            if (mounted) {
+              final clean = _sanitizeError(e.toString());
+              _showSnackBar(clean.isNotEmpty ? clean : 'Registration failed. Please try again.');
+            }
           }
           break;
 
@@ -118,15 +126,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             _showSnackBar('Password reset email sent to $email! Check inbox & spam.', isSuccess: true);
             _switchMode(AuthMode.login);
           } catch (e) {
-            _showSnackBar('Reset failed: ${e.toString()}');
+            _showSnackBar(_sanitizeError(e.toString()));
           }
           break;
       }
     } catch (e) {
-      _showSnackBar(e.toString().replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('minified:', '').trim());
+      _showSnackBar(_sanitizeError(e.toString()));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String _sanitizeError(String error) {
+    if (error.contains('TypeError') || error.contains('minified:') || error.contains('subtype of')) {
+      return 'Authentication service error. Please try again.';
+    }
+    return error.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('minified:', '').trim();
   }
 
   void _navigateToChart() {

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_database/firebase_database.dart';
+import '../../core/utils/map_utils.dart';
 import 'providers.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../domain/entities/candle.dart';
@@ -46,8 +47,8 @@ final userStatsProvider = StreamProvider<UserStats>((ref) async* {
   try {
     final snap =
         await FirebaseDatabase.instance.ref('presence').get();
-    if (snap.exists && snap.value is Map) {
-      onlineCount = (snap.value as Map).length;
+    if (snap.exists) {
+      onlineCount = MapUtils.countEntries(snap.value);
     }
   } catch (_) {}
 
@@ -57,8 +58,8 @@ final userStatsProvider = StreamProvider<UserStats>((ref) async* {
         .collection('stats')
         .doc('user_counters')
         .get();
-    if (doc.exists) {
-      final data = doc.data()!;
+    if (doc.exists && doc.data() != null) {
+      final data = MapUtils.extractMap(doc.data()) ?? {};
       totalInstalls = (data['totalInstalls'] as num?)?.toInt() ?? 0;
       approvedCount = (data['approvedCount'] as num?)?.toInt() ?? 0;
       pendingCount = (data['pendingCount'] as num?)?.toInt() ?? 0;
@@ -74,8 +75,8 @@ final userStatsProvider = StreamProvider<UserStats>((ref) async* {
 
   // Listen to Firestore counter doc changes
   await for (final snap in counterStream) {
-    if (snap.exists) {
-      final data = snap.data()!;
+    if (snap.exists && snap.data() != null) {
+      final data = MapUtils.extractMap(snap.data()) ?? {};
       totalInstalls = (data['totalInstalls'] as num?)?.toInt() ?? 0;
       approvedCount = (data['approvedCount'] as num?)?.toInt() ?? 0;
       pendingCount = (data['pendingCount'] as num?)?.toInt() ?? 0;
@@ -96,10 +97,7 @@ final onlineCountProvider = StreamProvider<int>((ref) {
       .onValue
       .map((event) {
     if (event.snapshot.value == null) return 0;
-    if (event.snapshot.value is Map) {
-      return (event.snapshot.value as Map).length;
-    }
-    return 0;
+    return MapUtils.countEntries(event.snapshot.value);
   });
 });
 

@@ -1,4 +1,7 @@
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
+import '../../core/utils/map_utils.dart';
 
 class TradeSignal extends Equatable {
   final String signal; // STRONG_BUY, BUY, HOLD, SELL, STRONG_SELL
@@ -43,7 +46,7 @@ class TradeSignal extends Equatable {
   }
 
   factory TradeSignal.fromRTDB(Map<String, dynamic> json) {
-    final scoresRaw = json['scores'] as Map<dynamic, dynamic>? ?? {};
+    final scoresRaw = MapUtils.extractMap(json['scores']) ?? {};
     final patternsRaw = json['patterns'] as List<dynamic>? ?? [];
 
     return TradeSignal(

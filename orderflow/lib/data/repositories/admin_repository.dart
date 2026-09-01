@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../datasources/remote_datasource.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../core/constants/app_constants.dart';
+import '../../core/utils/map_utils.dart';
 
 
 class AdminRepository {
@@ -33,7 +34,7 @@ class AdminRepository {
     
     final snapshot = await query.limit(50).get();
     return snapshot.docs
-        .map((doc) => UserProfile.fromJson({...doc.data() as Map<String, dynamic>, 'uid': doc.id}))
+        .map((doc) => UserProfile.fromJson({...(MapUtils.extractMap(doc.data()) ?? {}), 'uid': doc.id}))
         .toList();
   }
 
