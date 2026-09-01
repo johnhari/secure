@@ -41,40 +41,23 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_macos_build_settings(target)
+
+    # Strip unsupported -G flag from per-file compiler flags on all targets (Xcode 16+)
+    if target.respond_to?(:source_build_phase) && target.source_build_phase
+      target.source_build_phase.files.each do |file|
+        if file.settings && file.settings['COMPILER_FLAGS']
+          flags = file.settings['COMPILER_FLAGS'].split
+          flags.reject! { |flag| flag == '-G' }
+          file.settings['COMPILER_FLAGS'] = flags.join(' ')
+        end
+      end
+    end
+
     target.build_configurations.each do |config|
       config.build_settings['MACOSX_DEPLOYMENT_TARGET'] = '11.0'
       config.build_settings['EXPANDED_CODE_SIGN_IDENTITY'] = ""
       config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
       config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
-
-      # Force default debug info level (prevents -gmodules/-G flag)
-      config.build_settings['CLANG_DEBUG_INFORMATION_LEVEL'] = 'default'
-
-      # Strip unsupported -G flag from all build settings
-      ['OTHER_CFLAGS', 'OTHER_LDFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_SWIFT_FLAGS'].each do |key|
-        val = config.build_settings[key]
-        if val.is_a?(String)
-          config.build_settings[key] = val.split(' ').reject { |f| f == '-G' }.join(' ')
-        elsif val.is_a?(Array)
-          config.build_settings[key] = val.reject { |f| f == '-G' }
-        end
-      end
-    end
-  end
-
-  # Strip -G from ALL files in Pods directory (xcconfig, pbxproj, etc.)
-  pods_dir = File.join(File.dirname(__FILE__), 'Pods')
-  if Dir.exist?(pods_dir)
-    ['*.xcconfig', '*.pbxproj'].each do |pattern|
-      Dir.glob(File.join(pods_dir, '**', pattern)).each do |file_path|
-        content = File.read(file_path)
-        if content.match?(/[\s"]-G[\s";]/) || content.match?(/[\s"]-G$/)
-          cleaned = content.gsub(/(\s)-G(?=[\s";]|$)/, '\1')
-                          .gsub(/("-G\s)/, '"')
-                          .gsub(/(\s-G")/, '"')
-          File.open(file_path, 'w') { |f| f << cleaned }
-        end
-      end
     end
   end
 end
