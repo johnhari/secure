@@ -83,7 +83,13 @@ class AuthRepository {
       final isMasterAdmin = AppConstants.isMasterAdmin(user.email);
 
       if (doc.exists && doc.data() != null) {
-        final Map<String, dynamic> data = Map<String, dynamic>.from(doc.data()!);
+        final rawData = doc.data();
+        final Map<String, dynamic> data = {};
+        if (rawData != null) {
+          rawData.forEach((key, value) {
+            data[key.toString()] = value;
+          });
+        }
         data['uid'] = user.uid;
         if (isMasterAdmin) {
           data['role'] = 'admin';

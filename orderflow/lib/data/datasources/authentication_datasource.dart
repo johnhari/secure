@@ -252,56 +252,66 @@ class AuthenticationDataSource {
   /// Register device session (single-device per platform enforcement: 1 Phone + 1 Windows system)
   /// Admin users skip session overwrite so they can be on multiple devices.
   Future<void> _registerDeviceSession([DataSnapshot? existingSessionSnapshot]) async {
-    final user = _firebaseAuth.currentUser;
-    if (user == null) return;
+    try {
+      final user = _firebaseAuth.currentUser;
+      if (user == null) return;
 
-    final deviceId = await DeviceUtils.getDeviceId();
-    final platformKey = _getPlatformKey();
-    String sessionId;
-    
-    if (kIsWeb) {
-      final prefs = await SharedPreferences.getInstance();
-      sessionId = prefs.getString('web_session_id') ?? const Uuid().v4();
-      await prefs.setString('web_session_id', sessionId);
-    } else {
-      sessionId = const Uuid().v4();
+      final deviceId = await DeviceUtils.getDeviceId();
+      final platformKey = _getPlatformKey();
+      String sessionId;
+      
+      if (kIsWeb) {
+        final prefs = await SharedPreferences.getInstance();
+        sessionId = prefs.getString('web_session_id') ?? const Uuid().v4();
+        await prefs.setString('web_session_id', sessionId);
+      } else {
+        sessionId = const Uuid().v4();
+      }
+
+      final sessionRef = _database.ref('${AppConstants.sessionsPath}/${user.uid}');
+      
+      if (_isAdmin) {
+        try {
+          await sessionRef.child('lastSeen').set(ServerValue.timestamp);
+          await sessionRef.child(platformKey).child('lastSeen').set(ServerValue.timestamp);
+        } catch (_) {}
+        _startForceLogoutListener(user.uid);
+      } else {
+        final platformPayload = {
+          'activeDeviceId': deviceId,
+          'sessionId': sessionId,
+          'rollingToken': sessionId,
+          'rollingTokenIssuedAt': ServerValue.timestamp,
+          'lastSeen': ServerValue.timestamp,
+          'createdAt': ServerValue.timestamp,
+        };
+
+        try {
+          await sessionRef.update({
+            'activeDeviceId': deviceId,
+            'sessionId': sessionId,
+            'rollingToken': sessionId,
+            'rollingTokenIssuedAt': ServerValue.timestamp,
+            'forceLogout': false,
+            'lastSeen': ServerValue.timestamp,
+            'createdAt': ServerValue.timestamp,
+            platformKey: platformPayload,
+          });
+        } catch (_) {
+          try {
+            await sessionRef.child(platformKey).set(platformPayload);
+          } catch (_) {}
+        }
+
+        await startSessionListener(sessionId: sessionId);
+        _startRollingTokenRefresh(user.uid, sessionId);
+        _startForceLogoutListener(user.uid);
+      }
+
+      _logIpGeolocation(user.uid).catchError((_) {});
+    } catch (e) {
+      print('AuthenticationDataSource: _registerDeviceSession non-critical error: $e');
     }
-
-    final sessionRef = _database.ref('${AppConstants.sessionsPath}/${user.uid}');
-    
-    if (_isAdmin) {
-      await sessionRef.update({
-        'lastSeen': ServerValue.timestamp,
-        '$platformKey/lastSeen': ServerValue.timestamp,
-      });
-      _startForceLogoutListener(user.uid);
-    } else {
-      final platformPayload = {
-        'activeDeviceId': deviceId,
-        'sessionId': sessionId,
-        'rollingToken': sessionId,
-        'rollingTokenIssuedAt': ServerValue.timestamp,
-        'lastSeen': ServerValue.timestamp,
-        'createdAt': ServerValue.timestamp,
-      };
-
-      await sessionRef.update({
-        'activeDeviceId': deviceId,
-        'sessionId': sessionId,
-        'rollingToken': sessionId,
-        'rollingTokenIssuedAt': ServerValue.timestamp,
-        'forceLogout': false,
-        'lastSeen': ServerValue.timestamp,
-        'createdAt': ServerValue.timestamp,
-        platformKey: platformPayload,
-      });
-
-      await startSessionListener(sessionId: sessionId);
-      _startRollingTokenRefresh(user.uid, sessionId);
-      _startForceLogoutListener(user.uid);
-    }
-
-    _logIpGeolocation(user.uid).catchError((_) {});
   }
 
   // ── Feature 3: Rolling Session Token ──────────────────────────────────────

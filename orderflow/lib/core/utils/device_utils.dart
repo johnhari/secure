@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
@@ -63,7 +62,7 @@ class DeviceUtils {
   /// 1. ComputerName (device_info_plus)
   /// 2. DeviceId (device_info_plus)
   /// 3. NumberOfCores (device_info_plus)
-  /// 4. Disk serial number via PowerShell (fallback)
+  /// 4. Memory (device_info_plus)
   static Future<String> _buildWindowsFingerprint() async {
     final components = <String>[];
 
@@ -73,19 +72,6 @@ class DeviceUtils {
       components.add('DI:${windowsInfo.deviceId}');
       components.add('CORES:${windowsInfo.numberOfCores}');
       components.add('MEM:${windowsInfo.systemMemoryInMegabytes}');
-    } catch (_) {}
-
-    // Disk serial number via PowerShell (non-blocking fallback)
-    try {
-      final result = await Process.run(
-        'powershell',
-        ['-Command', '(Get-WmiObject Win32_DiskDrive | Select-Object -First 1).SerialNumber'],
-        runInShell: true,
-      ).timeout(const Duration(seconds: 3));
-      final serial = result.stdout.toString().trim();
-      if (serial.isNotEmpty && serial != 'null') {
-        components.add('DS:$serial');
-      }
     } catch (_) {}
 
     if (components.isEmpty) {
