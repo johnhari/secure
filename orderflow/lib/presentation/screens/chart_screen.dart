@@ -2623,6 +2623,30 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                       );
                     },
                   ),
+                  _buildIconButton(
+                    icon: Icons.refresh_rounded,
+                    color: AppTheme.primaryCyan,
+                    tooltip: 'Refresh Data',
+                    onPressed: () async {
+                      HapticFeedback.mediumImpact();
+                      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Row(
+                            children: [
+                              Icon(Icons.refresh_rounded, color: AppTheme.primaryCyan, size: 18),
+                              SizedBox(width: 8),
+                              Text('Refreshing orderflow & candles...'),
+                            ],
+                          ),
+                          backgroundColor: AppTheme.cardColor,
+                          duration: Duration(seconds: 1),
+                        ),
+                      );
+                      await ref.read(candleStreamProvider.notifier).refresh(clearCache: true);
+                      if (mounted) setState(() {});
+                    },
+                  ),
                   const SizedBox(width: 6),
                   _buildIconButton(
                     icon: Icons.person_rounded,
@@ -3142,6 +3166,32 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                                 context,
                                 MaterialPageRoute(builder: (_) => const HeatmapScreen()),
                               );
+                            },
+                          ),
+                          SizedBox(width: isCompact ? 4 : 6),
+                          _buildIconButton(
+                            icon: Icons.refresh_rounded,
+                            color: AppTheme.primaryCyan,
+                            tooltip: 'Refresh Data',
+                            isCompact: isCompact,
+                            onPressed: () async {
+                              HapticFeedback.mediumImpact();
+                              ScaffoldMessenger.of(context).removeCurrentSnackBar();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Row(
+                                    children: [
+                                      Icon(Icons.refresh_rounded, color: AppTheme.primaryCyan, size: 18),
+                                      SizedBox(width: 8),
+                                      Text('Refreshing orderflow & candles...'),
+                                    ],
+                                  ),
+                                  backgroundColor: AppTheme.cardColor,
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                              await ref.read(candleStreamProvider.notifier).refresh(clearCache: true);
+                              if (mounted) setState(() {});
                             },
                           ),
                           SizedBox(width: isCompact ? 4 : 6),
