@@ -240,10 +240,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = state.copyWith(status: AuthStatus.loading, error: null);
     try {
       final sessionMessage = await _authRepository.signIn(email, password);
-      final profile = await _authRepository.getCurrentUserProfile();
+      
+      UserProfile? profile;
+      try {
+        profile = await _authRepository.getCurrentUserProfile();
+      } catch (e) {
+        print('AuthNotifier: getCurrentUserProfile error: $e');
+      }
 
       if (profile == null) {
-        throw AuthException('Failed to load user profile. Please check connection.');
+        final currentUser = _authRepository.getCurrentUser();
+        if (currentUser != null) {
+          final isMaster = AppConstants.isMasterAdmin(email);
+          profile = UserProfile(
+            uid: currentUser.uid.toString(),
+            role: isMaster ? UserRole.admin : UserRole.viewer,
+            email: currentUser.email?.toString() ?? email,
+            phoneNumber: currentUser.phoneNumber?.toString(),
+            isApproved: isMaster ? true : false,
+            createdAt: DateTime.now(),
+          );
+        } else {
+          throw AuthException('Failed to load user profile. Please check connection.');
+        }
       }
 
       // Set admin mode for ongoing session checks (admin bypasses single-device restriction)
@@ -290,8 +309,12 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: profile,
         status: AuthStatus.authenticated,
       );
-      _startLastSeenTimer();
-      _authRepository.updateDeviceInfo().catchError((_) => null);
+      try {
+        _startLastSeenTimer();
+      } catch (_) {}
+      try {
+        _authRepository.updateDeviceInfo().catchError((_) => null);
+      } catch (_) {}
       return sessionMessage;
     } catch (e) {
       state = state.copyWith(

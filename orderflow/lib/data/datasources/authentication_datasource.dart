@@ -78,7 +78,6 @@ class AuthenticationDataSource {
         _isAdmin = true;
       }
 
-
       // Check if email is verified (bypassed for admin)
       if (userCredential.user != null && !userCredential.user!.emailVerified && !isMasterAdmin) {
         await userCredential.user!.sendEmailVerification();
@@ -86,48 +85,39 @@ class AuthenticationDataSource {
         throw AuthException('Email not verified. A new verification link has been sent to your email.');
       }
 
-      // Check admin status from Firestore BEFORE session enforcement
-      // so admin can stay logged in on multiple devices simultaneously
-      if (userCredential.user != null && !_isAdmin) {
-        try {
-          final userDoc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userCredential.user!.uid)
-              .get();
-          if (userDoc.exists) {
-            final role = userDoc.data()?['role']?.toString();
-            _isAdmin = (role == 'admin');
-          }
-        } catch (_) {
-          // Non-critical — default to non-admin
-        }
-      }
-
-      // Check for existing session on another device of the SAME platform category
+      // Safe non-blocking session check
       String? sessionMessage;
-      DataSnapshot? sessionSnapshot;
-      if (userCredential.user != null) {
-        final currentDeviceId = await DeviceUtils.getDeviceId();
-        final platformKey = _getPlatformKey();
-        final sessionRef = _database.ref('${AppConstants.sessionsPath}/${userCredential.user!.uid}');
-        
-        sessionSnapshot = await sessionRef.get();
-        
-        final data = _extractMap(sessionSnapshot.value);
-        if (data != null && !_isAdmin) {
-          final platformRaw = data[platformKey];
-          final platformData = _extractMap(platformRaw);
-          final activeDeviceId = (platformData != null ? platformData['activeDeviceId'] : data['activeDeviceId'])?.toString();
+      try {
+        if (userCredential.user != null && !isMasterAdmin && !kIsWeb) {
+          final currentDeviceId = await DeviceUtils.getDeviceId();
+          final platformKey = _getPlatformKey();
+          final sessionRef = _database.ref('${AppConstants.sessionsPath}/${userCredential.user!.uid}');
           
-          if (activeDeviceId != null && activeDeviceId != currentDeviceId) {
-             sessionMessage = 'You were logged in on another $platformKey device. That session has been terminated.';
+          final sessionSnapshot = await sessionRef.get().timeout(const Duration(seconds: 4));
+          final data = _extractMap(sessionSnapshot.value);
+          if (data != null) {
+            final platformRaw = data[platformKey];
+            final platformData = _extractMap(platformRaw);
+            final activeDeviceId = (platformData != null ? platformData['activeDeviceId'] : data['activeDeviceId'])?.toString();
+            
+            if (activeDeviceId != null && activeDeviceId != currentDeviceId) {
+               sessionMessage = 'You were logged in on another $platformKey device. That session has been terminated.';
+            }
           }
         }
+      } catch (e) {
+        print('Session check non-critical error: $e');
       }
       
-      await _registerDeviceSession(sessionSnapshot);
-      // Non-blocking notification token save
-      NotificationService.saveTokenToFirestore().catchError((_) => null);
+      try {
+        await _registerDeviceSession();
+      } catch (e) {
+        print('_registerDeviceSession non-critical error: $e');
+      }
+
+      try {
+        NotificationService.saveTokenToFirestore().catchError((_) => null);
+      } catch (_) {}
       
       return sessionMessage;
     } on firebase_auth.FirebaseAuthException catch (e) {

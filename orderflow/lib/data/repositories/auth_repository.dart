@@ -188,6 +188,9 @@ class AuthRepository {
     await _authDataSource.signOut();
   }
 
+  /// Get current Firebase user
+  dynamic getCurrentUser() => _authDataSource.getCurrentUser();
+
   /// Check if user is authenticated
   bool isAuthenticated() {
     return _authDataSource.getCurrentUser() != null;
