@@ -102,6 +102,7 @@ class OrderflowRepository {
         'adminOnly': adminOnly,
         'isInstitutional': false,
         'updatedBy': adminUid,
+        'injectedBy': adminUid,
         'updatedAt': FieldValue.serverTimestamp(),
       };
 

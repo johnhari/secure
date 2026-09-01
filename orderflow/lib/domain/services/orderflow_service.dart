@@ -128,13 +128,12 @@ class OrderflowService {
 
   Stream<Map<String, Map<String, dynamic>>> getOrderflowStream(String symbol, {String? currentUserEmail}) {
     // FIREBASE-ONLY: Stream orderflow data from Firestore, last 5 days only.
-    // No local cache — Firebase is the single source of truth.
+    // Query by symbol without composite index requirement, filter timestamp in memory
     final twoDaysAgo = DateTime.now().subtract(const Duration(hours: 240)).millisecondsSinceEpoch;
     
     return _firestore
         .collection(_collection)
         .where('symbol', isEqualTo: symbol)
-        .where('candleTime', isGreaterThanOrEqualTo: twoDaysAgo)
         .snapshots()
         .map((snapshot) {
       final Map<String, Map<String, dynamic>> data = {};
@@ -142,7 +141,7 @@ class OrderflowService {
       for (final doc in snapshot.docs) {
         final docData = doc.data();
         
-        final adminOnly = docData['adminOnly'] as bool? ?? false;
+        final adminOnly = docData['adminOnly'] == true;
         if (adminOnly && !AppConstants.isMasterAdmin(currentUserEmail)) {
           continue;
         }
@@ -157,26 +156,33 @@ class OrderflowService {
           candleTime = int.tryParse(idPart);
         }
         if (candleTime == null || candleTime == 0) continue;
+        if (candleTime < twoDaysAgo) continue;
+
+        Map<String, dynamic>? footprintMap;
+        final rawFootprint = docData['footprint'];
+        if (rawFootprint is Map) {
+          footprintMap = Map<String, dynamic>.from(rawFootprint);
+        }
 
         data[candleTime.toString()] = {
           'buyerCount': (docData['buyerCount'] as num?)?.toInt() ?? 0,
           'sellerCount': (docData['sellerCount'] as num?)?.toInt() ?? 0,
-          'isInstitutional': docData['isInstitutional'] as bool? ?? false,
-          'isBigSignal': docData['isBigSignal'] as bool? ?? false,
-          'isMediumSignal': docData['isMediumSignal'] as bool? ?? false,
-          'isTrap': docData['isTrap'] as bool? ?? false,
-          'isLiquidation': docData['isLiquidation'] as bool? ?? false,
+          'isInstitutional': docData['isInstitutional'] == true,
+          'isBigSignal': docData['isBigSignal'] == true,
+          'isMediumSignal': docData['isMediumSignal'] == true,
+          'isTrap': docData['isTrap'] == true,
+          'isLiquidation': docData['isLiquidation'] == true,
           'bubbleScale': (docData['bubbleScale'] as num?)?.toDouble() ?? 5.0,
           'bubbleOpacity': (docData['bubbleOpacity'] as num?)?.toDouble() ?? 0.65,
           'bubbleGlow': (docData['bubbleGlow'] as num?)?.toDouble() ?? 0.0,
-          'showLabel': docData['showLabel'] as bool? ?? true,
-          'customTag': docData['customTag'] as String? ?? '',
+          'showLabel': docData['showLabel'] != false,
+          'customTag': docData['customTag']?.toString() ?? '',
           'pulseSpeed': (docData['pulseSpeed'] as num?)?.toDouble() ?? 1.0,
-          'borderColor': docData['borderColor'] as String? ?? 'DEFAULT',
-          'expiryTime': docData['expiryTime'] as int?,
+          'borderColor': docData['borderColor']?.toString() ?? 'DEFAULT',
+          'expiryTime': _parseTimestamp(docData['expiryTime']),
           'updatedAt': _parseTimestamp(docData['updatedAt']),
-          'injectedBy': docData['updatedBy'] as String?,
-          'footprint': docData['footprint'] as Map<String, dynamic>?,
+          'injectedBy': (docData['injectedBy'] ?? docData['updatedBy'])?.toString(),
+          'footprint': footprintMap,
           'adminOnly': adminOnly,
         };
       }
@@ -190,20 +196,19 @@ class OrderflowService {
     final startTime = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
     return _firestore
         .collection(_collection)
-        .where('candleTime', isGreaterThanOrEqualTo: startTime)
         .snapshots()
         .map((snapshot) {
       final List<Map<String, dynamic>> signals = [];
       for (final doc in snapshot.docs) {
         final docData = doc.data();
         
-        final adminOnly = docData['adminOnly'] as bool? ?? false;
+        final adminOnly = docData['adminOnly'] == true;
         if (adminOnly && !AppConstants.isMasterAdmin(currentUserEmail)) {
           continue;
         }
 
-        final expiryTime = docData['expiryTime'] as int?;
-        if (expiryTime != null && expiryTime < DateTime.now().millisecondsSinceEpoch) {
+        final expiryTime = _parseTimestamp(docData['expiryTime']);
+        if (expiryTime > 0 && expiryTime < DateTime.now().millisecondsSinceEpoch) {
           continue;
         }
 
@@ -212,18 +217,20 @@ class OrderflowService {
         
         final parsedCandleTime = _parseTimestamp(docData['candleTime']);
         final parsedUpdatedAt = _parseTimestamp(docData['updatedAt']);
+        final effectiveTime = parsedCandleTime > 0 ? parsedCandleTime : parsedUpdatedAt;
+        if (effectiveTime < startTime) continue;
 
         signals.add({
-          'symbol': docData['symbol'] as String? ?? '',
-          'candleTime': parsedCandleTime > 0 ? parsedCandleTime : parsedUpdatedAt,
+          'symbol': docData['symbol']?.toString() ?? '',
+          'candleTime': effectiveTime,
           'buyerCount': buyerCount,
           'sellerCount': sellerCount,
-          'isInstitutional': docData['isInstitutional'] as bool? ?? false,
-          'isBigSignal': docData['isBigSignal'] as bool? ?? false,
-          'isMediumSignal': docData['isMediumSignal'] as bool? ?? false,
-          'isTrap': docData['isTrap'] as bool? ?? false,
-          'isLiquidation': docData['isLiquidation'] as bool? ?? false,
-          'customTag': docData['customTag'] as String? ?? '',
+          'isInstitutional': docData['isInstitutional'] == true,
+          'isBigSignal': docData['isBigSignal'] == true,
+          'isMediumSignal': docData['isMediumSignal'] == true,
+          'isTrap': docData['isTrap'] == true,
+          'isLiquidation': docData['isLiquidation'] == true,
+          'customTag': docData['customTag']?.toString() ?? '',
           'adminOnly': adminOnly,
         });
       }
@@ -248,13 +255,11 @@ class OrderflowService {
     }
     if (value is String) {
       String part = value;
-      if (part.contains('_')) {
-        part = part.split('_').last;
-      }
-      final parsedInt = int.tryParse(part);
-      if (parsedInt != null && parsedInt > 0) {
-        if (parsedInt < 10000000000) return parsedInt * 1000;
-        return parsedInt;
+      if (part.contains('_')) part = part.split('_').last;
+      final parsed = int.tryParse(part);
+      if (parsed != null && parsed > 0) {
+        if (parsed < 10000000000) return parsed * 1000;
+        return parsed;
       }
       final dt = DateTime.tryParse(value);
       return dt?.millisecondsSinceEpoch ?? 0;
@@ -264,8 +269,6 @@ class OrderflowService {
 
   Future<Map<String, Map<String, dynamic>>> getOrderflowData(String symbol, {int? startTime, String? currentUserEmail}) async {
     try {
-      // FIREBASE-ONLY: Always fetch from Firestore, last 5 days max.
-      // startTime is clamped to enforce the 10-day retention limit.
       final twoDaysAgo = DateTime.now().subtract(const Duration(hours: 240)).millisecondsSinceEpoch;
       final finalStartTime = startTime != null
           ? startTime.clamp(twoDaysAgo, double.maxFinite.toInt())
@@ -274,7 +277,6 @@ class OrderflowService {
       final snapshot = await _firestore
           .collection(_collection)
           .where('symbol', isEqualTo: symbol)
-          .where('candleTime', isGreaterThanOrEqualTo: finalStartTime)
           .get();
 
       final Map<String, Map<String, dynamic>> allData = {};
@@ -282,7 +284,7 @@ class OrderflowService {
       for (final doc in snapshot.docs) {
         final docData = doc.data();
         
-        final adminOnly = docData['adminOnly'] as bool? ?? false;
+        final adminOnly = docData['adminOnly'] == true;
         if (adminOnly && !AppConstants.isMasterAdmin(currentUserEmail)) {
           continue;
         }
@@ -293,26 +295,32 @@ class OrderflowService {
           final idPart = doc.id.contains('_') ? doc.id.split('_').last : doc.id;
           candleTime = int.tryParse(idPart) ?? 0;
         }
-        if (candleTime == 0) continue;
+        if (candleTime == 0 || candleTime < finalStartTime) continue;
         
+        Map<String, dynamic>? footprintMap;
+        final rawFootprint = docData['footprint'];
+        if (rawFootprint is Map) {
+          footprintMap = Map<String, dynamic>.from(rawFootprint);
+        }
+
         allData[candleTime.toString()] = {
           'buyerCount': (docData['buyerCount'] as num?)?.toInt() ?? 0,
           'sellerCount': (docData['sellerCount'] as num?)?.toInt() ?? 0,
-          'isInstitutional': docData['isInstitutional'] as bool? ?? false,
-          'isBigSignal': docData['isBigSignal'] as bool? ?? false,
-          'isMediumSignal': docData['isMediumSignal'] as bool? ?? false,
-          'isTrap': docData['isTrap'] as bool? ?? false,
-          'isLiquidation': docData['isLiquidation'] as bool? ?? false,
+          'isInstitutional': docData['isInstitutional'] == true,
+          'isBigSignal': docData['isBigSignal'] == true,
+          'isMediumSignal': docData['isMediumSignal'] == true,
+          'isTrap': docData['isTrap'] == true,
+          'isLiquidation': docData['isLiquidation'] == true,
           'bubbleScale': (docData['bubbleScale'] as num?)?.toDouble() ?? 5.0,
           'bubbleOpacity': (docData['bubbleOpacity'] as num?)?.toDouble() ?? 0.65,
           'bubbleGlow': (docData['bubbleGlow'] as num?)?.toDouble() ?? 0.0,
-          'showLabel': docData['showLabel'] as bool? ?? true,
-          'customTag': docData['customTag'] as String? ?? '',
+          'showLabel': docData['showLabel'] != false,
+          'customTag': docData['customTag']?.toString() ?? '',
           'pulseSpeed': (docData['pulseSpeed'] as num?)?.toDouble() ?? 1.0,
-          'borderColor': docData['borderColor'] as String? ?? 'DEFAULT',
-          'expiryTime': docData['expiryTime'] as int?,
-          'injectedBy': docData['updatedBy'] as String?,
-          'footprint': docData['footprint'] as Map<String, dynamic>?,
+          'borderColor': docData['borderColor']?.toString() ?? 'DEFAULT',
+          'expiryTime': _parseTimestamp(docData['expiryTime']),
+          'injectedBy': (docData['injectedBy'] ?? docData['updatedBy'])?.toString(),
+          'footprint': footprintMap,
           'adminOnly': adminOnly,
         };
       }
