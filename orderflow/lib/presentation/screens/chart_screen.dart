@@ -2638,6 +2638,19 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                   ),
                   const SizedBox(width: 6),
                   if (isAdmin || isSuperuser) ...[
+                    _buildIconButton(
+                      icon: Icons.admin_panel_settings_rounded,
+                      color: AppTheme.goldColor,
+                      tooltip: 'Admin Centre',
+                      onPressed: () {
+                        HapticFeedback.lightImpact();
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
+                        );
+                      },
+                    ),
+                    const SizedBox(width: 6),
                     if (!isReplaying) ...[
                       _buildIconButton(
                         icon: Icons.history_toggle_off_rounded,
@@ -3171,6 +3184,20 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                             SizedBox(width: isCompact ? 4 : 6),
                           ],
                           if (isAdmin || isSuperuser) ...[
+                            _buildIconButton(
+                              icon: Icons.admin_panel_settings_rounded,
+                              color: AppTheme.goldColor,
+                              tooltip: 'Admin Centre',
+                              isCompact: isCompact,
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
+                                );
+                              },
+                            ),
+                            SizedBox(width: isCompact ? 4 : 6),
                             if (!isReplaying) ...[
                               _buildIconButton(
                                 icon: Icons.history_toggle_off_rounded,
