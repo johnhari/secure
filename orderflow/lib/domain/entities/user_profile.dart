@@ -71,25 +71,25 @@ class UserProfile extends Equatable {
   }
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
-    final emailStr = json['email'] as String?;
+    final emailStr = json['email']?.toString();
     final isAdminEmail = AppConstants.isMasterAdmin(emailStr);
 
     return UserProfile(
-      uid: json['uid'] as String,
-      name: json['name'] as String?,
-      role: isAdminEmail ? UserRole.admin : _parseRole(json['role'] as String?),
+      uid: json['uid']?.toString() ?? '',
+      name: json['name']?.toString(),
+      role: isAdminEmail ? UserRole.admin : _parseRole(json['role']?.toString()),
       createdAt: _parseDateTime(json['createdAt']),
       email: emailStr,
-      phoneNumber: json['phoneNumber'] as String?,
-      isApproved: isAdminEmail ? true : ((json['isApproved'] as bool?) ?? false),
+      phoneNumber: json['phoneNumber']?.toString(),
+      isApproved: isAdminEmail ? true : (json['isApproved'] == true || json['isApproved'] == 1 || json['isApproved'] == 'true'),
       expiryDate: _parseDateTime(json['expiryDate']),
-      isCanceled: (json['isCanceled'] as bool?) ?? false,
-      subscriptionType: _parseSubscriptionType(json['subscriptionType'] as String?),
-      boundDeviceId: json['boundDeviceId'] as String?,
-      boundMobileDeviceId: json['boundMobileDeviceId'] as String?,
-      boundWindowsDeviceId: json['boundWindowsDeviceId'] as String?,
-      registeredDeviceName: json['registeredDeviceName'] as String?,
-      registeredDeviceDetails: json['registeredDeviceDetails'] as String?,
+      isCanceled: json['isCanceled'] == true || json['isCanceled'] == 1 || json['isCanceled'] == 'true',
+      subscriptionType: _parseSubscriptionType(json['subscriptionType']?.toString()),
+      boundDeviceId: json['boundDeviceId']?.toString(),
+      boundMobileDeviceId: json['boundMobileDeviceId']?.toString(),
+      boundWindowsDeviceId: json['boundWindowsDeviceId']?.toString(),
+      registeredDeviceName: json['registeredDeviceName']?.toString(),
+      registeredDeviceDetails: json['registeredDeviceDetails']?.toString(),
     );
   }
 

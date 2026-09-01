@@ -113,12 +113,11 @@ class AuthenticationDataSource {
         
         sessionSnapshot = await sessionRef.get();
         
-        if (sessionSnapshot.exists && !_isAdmin) {
-          final data = sessionSnapshot.value as Map<dynamic, dynamic>;
-          final platformData = data[platformKey] as Map<dynamic, dynamic>?;
-          final activeDeviceId = platformData != null
-              ? platformData['activeDeviceId'] as String?
-              : data['activeDeviceId'] as String?;
+        if (sessionSnapshot.exists && !_isAdmin && sessionSnapshot.value is Map) {
+          final data = sessionSnapshot.value as Map;
+          final platformRaw = data[platformKey];
+          final platformData = platformRaw is Map ? platformRaw : null;
+          final activeDeviceId = (platformData != null ? platformData['activeDeviceId'] : data['activeDeviceId'])?.toString();
           
           if (activeDeviceId != null && activeDeviceId != currentDeviceId) {
              sessionMessage = 'You were logged in on another $platformKey device. That session has been terminated.';
@@ -366,18 +365,19 @@ class AuthenticationDataSource {
   /// Logs the user's IP geolocation (city, country) to Firestore for anomaly detection.
   /// Uses ip-api.com free tier (no key required, non-commercial use).
   Future<void> _logIpGeolocation(String uid) async {
+    if (kIsWeb) return; // Skip on web to prevent mixed-content/CORS browser security blocks
     try {
       final response = await http
-          .get(Uri.parse('http://ip-api.com/json/?fields=status,country,regionName,city,query'))
+          .get(Uri.parse('https://ipapi.co/json/'))
           .timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        if (data['status'] == 'success') {
+        final data = json.decode(response.body);
+        if (data is Map) {
           final entry = {
-            'ip': data['query'] ?? '',
-            'city': data['city'] ?? '',
-            'region': data['regionName'] ?? '',
-            'country': data['country'] ?? '',
+            'ip': data['ip']?.toString() ?? '',
+            'city': data['city']?.toString() ?? '',
+            'region': data['region']?.toString() ?? '',
+            'country': data['country_name']?.toString() ?? '',
             'timestamp': DateTime.now().toIso8601String(),
           };
           // Store in RTDB session node
@@ -412,14 +412,14 @@ class AuthenticationDataSource {
       final platformSessionRef = _database.ref('${AppConstants.sessionsPath}/${user.uid}/$platformKey');
       final snapshot = await platformSessionRef.get();
       
-      if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
+      if (snapshot.exists && snapshot.value is Map) {
+        final data = snapshot.value as Map;
         final deviceId = await DeviceUtils.getDeviceId();
-        final activeDeviceId = data['activeDeviceId'] as String?;
+        final activeDeviceId = data['activeDeviceId']?.toString();
         
         String? mySessionId;
         if (activeDeviceId == deviceId) {
-          mySessionId = data['sessionId'] as String?;
+          mySessionId = data['sessionId']?.toString();
         }
         
         if (mySessionId != null) {
@@ -438,12 +438,12 @@ class AuthenticationDataSource {
         // Fallback: check root session node if platform node not created yet
         final sessionRef = _database.ref('${AppConstants.sessionsPath}/${user.uid}');
         final mainSnap = await sessionRef.get();
-        if (mainSnap.exists) {
-          final data = mainSnap.value as Map<dynamic, dynamic>;
+        if (mainSnap.exists && mainSnap.value is Map) {
+          final data = mainSnap.value as Map;
           final deviceId = await DeviceUtils.getDeviceId();
-          final activeDeviceId = data['activeDeviceId'] as String?;
+          final activeDeviceId = data['activeDeviceId']?.toString();
           if (activeDeviceId == deviceId) {
-            final mySessionId = data['sessionId'] as String?;
+            final mySessionId = data['sessionId']?.toString();
             if (mySessionId != null) {
               _currentSessionId = mySessionId;
               _listenForSessionInvalidation(user.uid, mySessionId);
@@ -475,10 +475,10 @@ class AuthenticationDataSource {
     final platformSessionRef = _database.ref('${AppConstants.sessionsPath}/$uid/$platformKey');
 
     _sessionListener = platformSessionRef.onValue.listen((event) {
-      if (event.snapshot.value == null) return;
+      if (event.snapshot.value == null || event.snapshot.value is! Map) return;
 
-      final data = event.snapshot.value as Map<dynamic, dynamic>;
-      final sessionId = data['sessionId'] as String?;
+      final data = event.snapshot.value as Map;
+      final sessionId = data['sessionId']?.toString();
 
       // WEB STABILITY: If we just hijacked the session, our local currentSessionId 
       // might be outdated. We should NOT log out if the new ID is what we just set.
@@ -536,9 +536,9 @@ class AuthenticationDataSource {
       // Use a timeout to prevent hanging on poor connections
       final snapshot = await platformSessionRef.get().timeout(const Duration(seconds: 10));
 
-      if (snapshot.exists) {
-        final data = snapshot.value as Map<dynamic, dynamic>;
-        final activeDeviceId = data['activeDeviceId'] as String?;
+      if (snapshot.exists && snapshot.value is Map) {
+        final data = snapshot.value as Map;
+        final activeDeviceId = data['activeDeviceId']?.toString();
 
         if (activeDeviceId == deviceId) {
           return true;
@@ -547,9 +547,9 @@ class AuthenticationDataSource {
         // Check top-level session node for backward compatibility
         final sessionRef = _database.ref('${AppConstants.sessionsPath}/${user.uid}');
         final mainSnapshot = await sessionRef.get().timeout(const Duration(seconds: 5));
-        if (mainSnapshot.exists) {
-          final data = mainSnapshot.value as Map<dynamic, dynamic>;
-          final activeDeviceId = data['activeDeviceId'] as String?;
+        if (mainSnapshot.exists && mainSnapshot.value is Map) {
+          final data = mainSnapshot.value as Map;
+          final activeDeviceId = data['activeDeviceId']?.toString();
           if (activeDeviceId == deviceId) {
             return true;
           }
