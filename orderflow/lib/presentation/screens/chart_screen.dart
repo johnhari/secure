@@ -3875,7 +3875,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
     if (_autoScroll && candles.isNotEmpty) {
       final int targetVisibleCount = AppConstants.maxVisibleCandles;
       computedXMin = math.max(0.0, (candles.length - targetVisibleCount).toDouble());
-      computedXMax = (candles.length - 1 + 0.8).toDouble();
+      computedXMax = (candles.length - 1 + 2.0).toDouble();
       _yVisibleMin = null;
       _yVisibleMax = null;
     }
@@ -3883,7 +3883,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
     // Auto-fit Y axis dynamically according to currently visible candles in viewport
     if (candles.isNotEmpty) {
       final double currentXMin = computedXMin ?? math.max(0.0, (candles.length - AppConstants.maxVisibleCandles).toDouble());
-      final double currentXMax = computedXMax ?? (candles.length - 1 + 0.8);
+      final double currentXMax = computedXMax ?? (candles.length - 1 + 2.0);
 
       int startIdx = currentXMin.floor().clamp(0, candles.length - 1);
       int endIdx = currentXMax.ceil().clamp(0, candles.length - 1);
@@ -3898,11 +3898,16 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
         double vMin = visibleViewportCandles.map((c) => c.low.toDouble()).reduce(math.min);
         double vMax = visibleViewportCandles.map((c) => c.high.toDouble()).reduce(math.max);
         
-        // Include last known price ONLY if live candle is currently in the visible viewport AND within proximity
+        // Always include live price in Y-axis bounds if the live candle is in viewport
         final bool isLiveVisible = (endIdx >= candles.length - 1);
-        if (isLiveVisible && _lastKnownPrice > 0 && (_lastKnownPrice - vMax).abs() < 120 && (vMin - _lastKnownPrice).abs() < 120) {
-          vMin = math.min(vMin, _lastKnownPrice);
-          vMax = math.max(vMax, _lastKnownPrice);
+        if (isLiveVisible) {
+          final double liveP = _animatedCloseNotifier.value > 0 
+              ? _animatedCloseNotifier.value 
+              : (_lastKnownPrice > 0 ? _lastKnownPrice : candles.last.close.toDouble());
+          if (liveP > 0) {
+            vMin = math.min(vMin, liveP);
+            vMax = math.max(vMax, liveP);
+          }
         }
 
         final double rawSpan = vMax - vMin;
@@ -4374,14 +4379,22 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
           // Candles
           CandleSeries<CandleModel, String>(
             onRendererCreated: (ChartSeriesController controller) => _seriesController = controller,
-            dataSource: candles.isEmpty ? [] : [
-              ...candles.sublist(0, candles.length - 1),
-              candles.last.copyWith(
-                close: (ref.read(candleStreamProvider).isReplaying || _animatedCloseNotifier.value == 0)
-                    ? candles.last.close 
-                    : _animatedCloseNotifier.value
-              ),
-            ],
+            dataSource: candles.isEmpty ? [] : () {
+              final last = candles.last;
+              final double effClose = (ref.read(candleStreamProvider).isReplaying || _animatedCloseNotifier.value == 0)
+                  ? last.close.toDouble() 
+                  : _animatedCloseNotifier.value;
+              final double effHigh = math.max(last.high.toDouble(), math.max(last.open.toDouble(), effClose));
+              final double effLow = math.min(last.low.toDouble(), math.min(last.open.toDouble(), effClose));
+              return [
+                ...candles.sublist(0, candles.length - 1),
+                last.copyWith(
+                  close: effClose,
+                  high: effHigh,
+                  low: effLow,
+                ),
+              ];
+            }(),
             xValueMapper: (CandleModel c, _) => c.candleKey,
             lowValueMapper: (CandleModel c, _) {
               final double h = c.high.toDouble();
