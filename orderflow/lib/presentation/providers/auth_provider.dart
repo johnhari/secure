@@ -164,18 +164,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
       if (_authRepository.isAuthenticated()) {
         state = state.copyWith(status: AuthStatus.loading);
         
-        // Step 1: Fetch profile and email verification in parallel (with timeout)
-        // Profile is needed first to set admin mode before session check
-        final result = await Future.any([
-          Future.wait([
-            _authRepository.isEmailVerified(),
-            _authRepository.getCurrentUserProfile(),
-          ]),
-          Future.delayed(const Duration(seconds: 5)).then((_) => throw TimeoutException('Auth check took too long')),
-        ]);
+        final bool isEmailVerified = await _authRepository.isEmailVerified().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => false,
+        );
 
-        final isEmailVerified = result[0] as bool;
-        final profile = result[1] as UserProfile?;
+        final UserProfile? profile = await _authRepository.getCurrentUserProfile().timeout(
+          const Duration(seconds: 5),
+          onTimeout: () => null,
+        );
         
         if (!isEmailVerified) {
           await _authRepository.signOut();
@@ -205,7 +202,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           }
 
           // Check hardware lock (One User, One System)
-          if (profile != null) {
+          if (profile != null && !kIsWeb) {
             final hwError = await _checkHardwareLock(profile);
             if (hwError != null) {
               await _authRepository.signOut();
@@ -223,7 +220,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           );
           _startLastSeenTimer();
           _authRepository.startSessionListener();
-          _authRepository.updateDeviceInfo();
+          _authRepository.updateDeviceInfo().catchError((_) => null);
         } else {
           await _authRepository.signOut();
           state = const AuthState(status: AuthStatus.unauthenticated);

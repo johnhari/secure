@@ -95,7 +95,7 @@ class AuthenticationDataSource {
               .doc(userCredential.user!.uid)
               .get();
           if (userDoc.exists) {
-            final role = userDoc.data()?['role'] as String?;
+            final role = userDoc.data()?['role']?.toString();
             _isAdmin = (role == 'admin');
           }
         } catch (_) {
@@ -319,7 +319,7 @@ class AuthenticationDataSource {
       try {
         final snap = await platformRef.child('rollingToken').get();
         if (snap.exists) {
-          final serverToken = snap.value as String?;
+          final serverToken = snap.value?.toString();
           if (serverToken != null && serverToken != _currentRollingToken) {
             timer.cancel();
             _onSessionInvalidated?.call();
