@@ -4971,13 +4971,10 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
     final double visibleCandlesCount;
     if (_xVisibleMin != null && _xVisibleMax != null) {
       visibleCandlesCount = _xVisibleMax! - _xVisibleMin!;
-    } else if (candles.length > AppConstants.maxVisibleCandles) {
-      // Defaults to maxVisibleCandles when first loaded
-      visibleCandlesCount = (AppConstants.maxVisibleCandles + 2).toDouble();
     } else {
-      visibleCandlesCount = candles.length.toDouble();
+      visibleCandlesCount = 25.0;
     }
-    final bool isZoomedOut = visibleCandlesCount > 35;
+    final bool isZoomedOut = visibleCandlesCount > 90;
     const double pillScale = 0.95;
     const bool shouldShowLabel = true;
 
@@ -5061,15 +5058,8 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
           isHeavy = isBigSignal || isInstitutional || isTrap || isLiquidation;
         }
       } 
-      // 2. Simulation Logic (if no admin data) — runs for completed candles
+      // 2. Simulation Logic (if no admin data) — runs for all candles
       else {
-        final bool isLast = (candles.isNotEmpty && candle.candleKey == candles.last.candleKey);
-        final nowIST = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
-        final bool isOngoing = isLast && (!candle.isClosed && nowIST.isBefore(candle.timeEnd));
-        
-        // Ongoing candle without admin data shows no simulated volume data until completed
-        if (isOngoing) continue;
-
         final keyInt = candle.timeStart.millisecondsSinceEpoch;
         final random = Random(keyInt);
         final diff = (candle.close - candle.open).abs();
@@ -5126,7 +5116,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
       isHeavy = isHeavy || (buyerCount >= 8500 || sellerCount >= 8500);
       const bool shouldShowPill = true;
 
-      // When fully zoomed out, hide simulated filler data and only show injected data balls and major signals on candlesticks
+      // When fully zoomed out (>90 candles), hide simulated filler data and only show injected data balls and major signals on candlesticks
       if (isZoomedOut && !hasAdminData && !isHeavy && !isBigSignal && !isInstitutional && !isTrap && !isLiquidation) {
         continue;
       }
