@@ -49,7 +49,10 @@ post_install do |installer|
       config.build_settings['CODE_SIGNING_REQUIRED'] = "NO"
       config.build_settings['CODE_SIGNING_ALLOWED'] = "NO"
 
-      # Strip unsupported -G flag from build settings
+      # Force default debug info level (prevents -gmodules/-G flag)
+      config.build_settings['CLANG_DEBUG_INFORMATION_LEVEL'] = 'default'
+
+      # Strip unsupported -G flag from all build settings
       ['OTHER_CFLAGS', 'OTHER_LDFLAGS', 'OTHER_CPLUSPLUSFLAGS', 'OTHER_SWIFT_FLAGS'].each do |key|
         val = config.build_settings[key]
         if val.is_a?(String)
@@ -61,14 +64,18 @@ post_install do |installer|
     end
   end
 
-  # Strip -G from ALL xcconfig files in Pods directory
+  # Strip -G from ALL files in Pods directory (xcconfig, pbxproj, etc.)
   pods_dir = File.join(File.dirname(__FILE__), 'Pods')
   if Dir.exist?(pods_dir)
-    Dir.glob(File.join(pods_dir, '**', '*.xcconfig')).each do |xcconfig_path|
-      content = File.read(xcconfig_path)
-      if content.include?('-G')
-        cleaned = content.gsub(/\s-G(?=\s|$)/, '').gsub(/^-G(?=\s|$)/, '')
-        File.open(xcconfig_path, 'w') { |f| f << cleaned }
+    ['*.xcconfig', '*.pbxproj'].each do |pattern|
+      Dir.glob(File.join(pods_dir, '**', pattern)).each do |file_path|
+        content = File.read(file_path)
+        if content.match?(/[\s"]-G[\s";]/) || content.match?(/[\s"]-G$/)
+          cleaned = content.gsub(/(\s)-G(?=[\s";]|$)/, '\1')
+                          .gsub(/("-G\s)/, '"')
+                          .gsub(/(\s-G")/, '"')
+          File.open(file_path, 'w') { |f| f << cleaned }
+        end
       end
     end
   end
