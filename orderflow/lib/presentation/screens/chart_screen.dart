@@ -2286,13 +2286,6 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                                                   ),
                                                 );
                                               }
-                                              if (kIsWeb) {
-                                                return TradingViewChart(
-                                                  key: ValueKey('tv_$selectedInstrument'),
-                                                  candles: candleState.candles,
-                                                  symbol: selectedInstrument,
-                                                );
-                                              }
                                               return _buildChart(
                                                 candleState.candles,
                                                 animatedClose,
@@ -3852,7 +3845,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
     final double currentVisibleSpan = (computedXMax != null && computedXMin != null)
         ? (computedXMax - computedXMin)
         : (candles.length > AppConstants.maxVisibleCandles ? (AppConstants.maxVisibleCandles + 2).toDouble() : candles.length.toDouble());
-    final bool isZoomedOut = currentVisibleSpan > 35;
+    final bool isZoomedOut = currentVisibleSpan > 80;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 4),
@@ -4834,7 +4827,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
       ),
 
 
-      if (MediaQuery.of(context).size.width > 900)
+      if (MediaQuery.of(context).size.width > 700)
         Positioned(
           top: 16,
           left: 0,
@@ -4843,8 +4836,12 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
             child: ValueListenableBuilder<double>(
               valueListenable: _animatedCloseNotifier,
               builder: (context, animatedClose, _) {
-                final double open = sessionOpenPrice;
-                final double close = animatedClose;
+                final double close = animatedClose > 0 
+                    ? animatedClose 
+                    : (candles.isNotEmpty ? candles.last.close.toDouble() : 0.0);
+                final double open = sessionOpenPrice > 0 
+                    ? sessionOpenPrice 
+                    : (candles.isNotEmpty ? candles.first.open.toDouble() : close);
                 final double change = close - open;
                 final bool isPositive = change >= 0;
                 return Row(
@@ -4852,8 +4849,8 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                   children: [
                     _buildSelectedInstrumentPillCard(
                       ref.read(selectedInstrumentProvider),
-                      animatedClose,
-                      sessionOpenPrice,
+                      close,
+                      open,
                       isPositive,
                     ),
                     const SizedBox(width: 12),
