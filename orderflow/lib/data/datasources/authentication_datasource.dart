@@ -120,13 +120,9 @@ class AuthenticationDataSource {
       } catch (_) {}
       
       return sessionMessage;
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _mapFirebaseAuthError(e);
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
-        throw NetworkException();
-      }
-      rethrow;
+      if (e is AuthException) rethrow;
+      throw _mapFirebaseAuthError(e);
     }
   }
 
@@ -178,13 +174,9 @@ class AuthenticationDataSource {
         return true;
       }
       return false;
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _mapFirebaseAuthError(e);
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
-        throw NetworkException();
-      }
-      rethrow;
+      if (e is AuthException) rethrow;
+      throw _mapFirebaseAuthError(e);
     }
   }
 
@@ -195,13 +187,9 @@ class AuthenticationDataSource {
       if (user != null) {
         await user.updateDisplayName(name.trim());
       }
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _mapFirebaseAuthError(e);
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
-        throw NetworkException();
-      }
-      rethrow;
+      if (e is AuthException) rethrow;
+      throw _mapFirebaseAuthError(e);
     }
   }
 
@@ -229,13 +217,9 @@ class AuthenticationDataSource {
       final normalizedEmail = email.toLowerCase().trim();
       
       await _firebaseAuth.sendPasswordResetEmail(email: normalizedEmail);
-    } on firebase_auth.FirebaseAuthException catch (e) {
-      throw _mapFirebaseAuthError(e);
     } catch (e) {
-      if (e.toString().contains('SocketException')) {
-        throw NetworkException();
-      }
-      rethrow;
+      if (e is AuthException) rethrow;
+      throw _mapFirebaseAuthError(e);
     }
   }
 
@@ -643,28 +627,41 @@ class AuthenticationDataSource {
   Stream<firebase_auth.User?> get authStateChanges => _firebaseAuth.authStateChanges();
 
   /// Map Firebase auth errors to user-friendly messages
-  AuthException _mapFirebaseAuthError(firebase_auth.FirebaseAuthException e) {
-    switch (e.code) {
-      case 'user-not-found':
-        return AuthException('No account found with this email.', e.code);
-      case 'wrong-password':
-        return AuthException('Incorrect password.', e.code);
-      case 'invalid-email':
-        return AuthException('Invalid email address.', e.code);
-      case 'user-disabled':
-        return AuthException('This account has been disabled.', e.code);
-      case 'email-already-in-use':
-        return AuthException('This email is already registered.', e.code);
-      case 'weak-password':
-        return AuthException('Password is too weak. Use at least 6 characters.', e.code);
-      case 'too-many-requests':
-        return AuthException('Too many attempts. Please try again later.', e.code);
-      case 'network-request-failed':
-        return NetworkException();
-      case 'invalid-credential':
-        return AuthException('Invalid email or password.', e.code);
-      default:
-        return AuthException('Authentication failed. Please try again.', e.code);
+  AuthException _mapFirebaseAuthError(dynamic e) {
+    final str = e.toString().toLowerCase();
+    String? code;
+    try {
+      final dynamic dyn = e;
+      code = dyn.code?.toString();
+    } catch (_) {}
+
+    if (code == 'user-not-found' || str.contains('user-not-found')) {
+      return AuthException('No account found with this email.', code);
     }
+    if (code == 'wrong-password' || str.contains('wrong-password')) {
+      return AuthException('Incorrect password.', code);
+    }
+    if (code == 'invalid-email' || str.contains('invalid-email')) {
+      return AuthException('Invalid email address.', code);
+    }
+    if (code == 'user-disabled' || str.contains('user-disabled')) {
+      return AuthException('This account has been disabled.', code);
+    }
+    if (code == 'email-already-in-use' || str.contains('email-already-in-use')) {
+      return AuthException('This email is already registered.', code);
+    }
+    if (code == 'weak-password' || str.contains('weak-password')) {
+      return AuthException('Password is too weak. Use at least 6 characters.', code);
+    }
+    if (code == 'too-many-requests' || str.contains('too-many-requests')) {
+      return AuthException('Too many attempts. Please try again later.', code);
+    }
+    if (code == 'network-request-failed' || str.contains('network') || str.contains('socket')) {
+      return NetworkException();
+    }
+    if (code == 'invalid-credential' || str.contains('invalid-credential')) {
+      return AuthException('Invalid email or password.', code);
+    }
+    return AuthException('Invalid email or password. Please try again.', code);
   }
 }

@@ -317,11 +317,17 @@ class AuthNotifier extends StateNotifier<AuthState> {
       } catch (_) {}
       return sessionMessage;
     } catch (e) {
+      String cleanError = e.toString();
+      if (cleanError.contains('TypeError') || cleanError.contains('minified:') || cleanError.contains('subtype of') || cleanError.contains('Instance of')) {
+        cleanError = 'Invalid email or password. Please verify credentials.';
+      } else {
+        cleanError = cleanError.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('Exception:', '').trim();
+      }
       state = state.copyWith(
         status: AuthStatus.error,
-        error: e.toString(),
+        error: cleanError,
       );
-      rethrow;
+      throw AuthException(cleanError);
     }
   }
 
@@ -342,25 +348,35 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(status: AuthStatus.unauthenticated);
       return verificationSent;
     } catch (e) {
+      String cleanError = e.toString();
+      if (cleanError.contains('TypeError') || cleanError.contains('minified:') || cleanError.contains('subtype of') || cleanError.contains('Instance of')) {
+        cleanError = 'Registration failed. Please verify all details.';
+      } else {
+        cleanError = cleanError.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('Exception:', '').trim();
+      }
       state = state.copyWith(
         status: AuthStatus.error,
-        error: e.toString(),
+        error: cleanError,
       );
-      rethrow;
+      throw AuthException(cleanError);
     }
   }
 
   Future<void> sendPasswordResetEmail(String email) async {
-    state = state.copyWith(status: AuthStatus.loading, error: null);
     try {
       await _authRepository.sendPasswordResetEmail(email);
-      state = state.copyWith(status: AuthStatus.unauthenticated);
     } catch (e) {
+      String cleanError = e.toString();
+      if (cleanError.contains('TypeError') || cleanError.contains('minified:') || cleanError.contains('subtype of') || cleanError.contains('Instance of')) {
+        cleanError = 'Password reset failed. Please check your email.';
+      } else {
+        cleanError = cleanError.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('Exception:', '').trim();
+      }
       state = state.copyWith(
         status: AuthStatus.error,
-        error: e.toString(),
+        error: cleanError,
       );
-      rethrow;
+      throw AuthException(cleanError);
     }
   }
 

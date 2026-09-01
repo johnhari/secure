@@ -138,10 +138,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
   }
 
   String _sanitizeError(String error) {
-    if (error.contains('TypeError') || error.contains('minified:') || error.contains('subtype of')) {
-      return 'Authentication service error. Please try again.';
+    if (error.contains('TypeError') ||
+        error.contains('minified:') ||
+        error.contains('subtype of') ||
+        error.contains('Instance of') ||
+        error.contains('M9') ||
+        error.contains('M8') ||
+        error.contains('M7') ||
+        error.contains('M6')) {
+      return 'Invalid email or password. Please verify credentials.';
     }
-    return error.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('minified:', '').trim();
+    return error.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('minified:', '').replaceAll('Exception:', '').trim();
   }
 
   void _navigateToChart() {
@@ -197,10 +204,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
   void _showSnackBar(String message, {bool isSuccess = false}) {
     if (!mounted) return;
+    final clean = _sanitizeError(message);
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
-        backgroundColor: isSuccess ? Colors.green.shade700 : Colors.red.shade700,
+        content: Text(
+          clean,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: isSuccess ? const Color(0xFF00E676) : const Color(0xFFFF1744),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         margin: const EdgeInsets.all(16),
