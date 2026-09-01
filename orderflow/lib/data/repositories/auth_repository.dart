@@ -82,14 +82,14 @@ class AuthRepository {
       final doc = await _firestore.collection('users').doc(user.uid).get();
       final isMasterAdmin = AppConstants.isMasterAdmin(user.email);
 
-      if (doc.exists) {
-        final data = doc.data()!;
-        return UserProfile.fromJson({
-          ...data,
-          'uid': user.uid,
-          if (isMasterAdmin) 'role': 'admin',
-          if (isMasterAdmin) 'isApproved': true,
-        });
+      if (doc.exists && doc.data() != null) {
+        final Map<String, dynamic> data = Map<String, dynamic>.from(doc.data()!);
+        data['uid'] = user.uid;
+        if (isMasterAdmin) {
+          data['role'] = 'admin';
+          data['isApproved'] = true;
+        }
+        return UserProfile.fromJson(data);
       }
 
       // Create profile

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIG SHOT - High Performance Chart</title>
+    <script src="https://cdn.jsdelivr.net/npm/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #131722;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        #chart {
+            width: 100%;
+            height: 100%;
+        }
+        /* Custom scrollbar to match theme */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #131722;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #2a2e39;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div id="chart"></div>
+
+    <script>
+        let chart;
+        let candleSeries;
+
+        function initChart() {
+            const chartOptions = {
+                layout: {
+                    background: { type: 'solid', color: '#131722' },
+                    textColor: '#d1d4dc',
+                    fontSize: 11,
+                    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
+                },
+                grid: {
+                    vertLines: { color: 'rgba(42, 46, 57, 0.5)' },
+                    horzLines: { color: 'rgba(42, 46, 57, 0.5)' },
+                },
+                crosshair: {
+                    mode: 0, // CrosshairMode.Normal
+                    vertLine: {
+                        width: 1,
+                        color: '#758696',
+                        style: 3, // LineStyle.LargeDashed
+                        labelBackgroundColor: '#2a2e39',
+                    },
+                    horzLine: {
+                        width: 1,
+                        color: '#758696',
+                        style: 3, // LineStyle.LargeDashed
+                        labelBackgroundColor: '#2a2e39',
+                    },
+                },
+                rightPriceScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.1)',
+                    autoScale: true,
+                },
+                timeScale: {
+                    borderColor: 'rgba(197, 203, 206, 0.1)',
+                    timeVisible: true,
+                    secondsVisible: false,
+                },
+                handleScroll: true,
+                handleScale: true,
+            };
+
+            chart = LightweightCharts.createChart(document.getElementById('chart'), chartOptions);
+            
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#00ffcc',
+                downColor: '#ff3b30',
+                borderVisible: false,
+                wickUpColor: '#00ffcc',
+                wickDownColor: '#ff3b30',
+            });
+
+            // Adjust size on window resize
+            window.addEventListener('resize', () => {
+                chart.applyOptions({
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                });
+            });
+        }
+
+        // Message handler for Flutter communication
+        window.addEventListener('message', function(event) {
+            const message = event.data;
+            if (message.type === 'SET_DATA') {
+                candleSeries.setData(message.data);
+            } else if (message.type === 'UPDATE_DATA') {
+                candleSeries.update(message.data);
+            }
+        });
+
+        // Notify Flutter that we are ready
+        window.parent.postMessage({ type: 'CHART_READY' }, '*');
+
+        initChart();
+    </script>
+</body>
+</html>

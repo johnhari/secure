@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../core/utils/device_utils.dart';
 import '../../data/repositories/auth_repository.dart';
+import '../../data/datasources/authentication_datasource.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../core/constants/app_constants.dart';
 import 'providers.dart';
@@ -89,6 +90,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Enforce hardware ID lock (Supports 1 Phone + 1 Windows system concurrently)
   Future<String?> _checkHardwareLock(UserProfile profile) async {
+    if (kIsWeb) return null; // Web sessions are hardware-independent
     if (profile.isAdmin || AppConstants.isMasterAdmin(profile.email)) return null; // Admins bypass HWID lock
 
     // Check for VM (Anti-VM detection)
@@ -243,12 +245,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final sessionMessage = await _authRepository.signIn(email, password);
       final profile = await _authRepository.getCurrentUserProfile();
 
+      if (profile == null) {
+        throw AuthException('Failed to load user profile. Please check connection.');
+      }
+
       // Set admin mode for ongoing session checks (admin bypasses single-device restriction)
-      if (profile != null && profile.isAdmin) {
+      if (profile.isAdmin) {
         _authRepository.setAdminMode(true);
       }
       
-      if (profile != null && !profile.isApproved) {
+      if (!profile.isApproved) {
         try {
           final devName = await DeviceUtils.getDeviceName();
           final devDetails = await DeviceUtils.getDeviceDetails();
@@ -271,14 +277,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
 
       // Check hardware lock (One User, One System)
-      final hwError = await _checkHardwareLock(profile!);
-      if (hwError != null) {
-        await _authRepository.signOut();
-        state = state.copyWith(
-          status: AuthStatus.unauthenticated,
-          error: hwError,
-        );
-        return hwError;
+      if (!kIsWeb) {
+        final hwError = await _checkHardwareLock(profile);
+        if (hwError != null) {
+          await _authRepository.signOut();
+          state = state.copyWith(
+            status: AuthStatus.unauthenticated,
+            error: hwError,
+          );
+          return hwError;
+        }
       }
 
       state = AuthState(
@@ -286,7 +294,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         status: AuthStatus.authenticated,
       );
       _startLastSeenTimer();
-      _authRepository.updateDeviceInfo();
+      _authRepository.updateDeviceInfo().catchError((_) => null);
       return sessionMessage;
     } catch (e) {
       state = state.copyWith(
