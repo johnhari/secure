@@ -5174,31 +5174,17 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
             }
 
             if (shouldShowPill) {
-              if (isHeavy || hasAdminData) {
-                foregroundAnnotations.add(CartesianChartAnnotation(
-                   widget: ReplayEntryAnimation(
-                     key: ValueKey('glow_${candle.candleKey}'),
-                     child: glowBubble,
-                   ),
-                   coordinateUnit: CoordinateUnit.point,
-                   x: candle.candleKey,
-                   y: pillY,
-                   verticalAlignment: verticalAlign,
-                   horizontalAlignment: ChartAlignment.center,
-                ));
-              } else {
-                backgroundAnnotations.add(CartesianChartAnnotation(
-                   widget: ReplayEntryAnimation(
-                     key: ValueKey('glow_${candle.candleKey}'),
-                     child: glowBubble,
-                   ),
-                   coordinateUnit: CoordinateUnit.point,
-                   x: candle.candleKey,
-                   y: pillY,
-                   verticalAlignment: verticalAlign,
-                   horizontalAlignment: ChartAlignment.center,
-                ));
-              }
+              foregroundAnnotations.add(CartesianChartAnnotation(
+                 widget: KeyedSubtree(
+                   key: ValueKey('glow_${candle.candleKey}'),
+                   child: glowBubble,
+                 ),
+                 coordinateUnit: CoordinateUnit.point,
+                 x: candle.candleKey,
+                 y: pillY,
+                 verticalAlignment: verticalAlign,
+                 horizontalAlignment: ChartAlignment.center,
+              ));
             }
           } else {
             // Simulated Data: Single compact volume pill
@@ -5219,31 +5205,17 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                 isLiquidation: false,
               );
 
-              if (isHeavy) {
-                foregroundAnnotations.add(CartesianChartAnnotation(
-                  widget: ReplayEntryAnimation(
-                    key: ValueKey('glow_${candle.candleKey}'),
-                    child: glowBubble,
-                  ),
-                  coordinateUnit: CoordinateUnit.point,
-                  x: candle.candleKey,
-                  y: pillY,
-                  verticalAlignment: verticalAlign,
-                  horizontalAlignment: ChartAlignment.center,
-                ));
-              } else {
-                backgroundAnnotations.add(CartesianChartAnnotation(
-                  widget: ReplayEntryAnimation(
-                    key: ValueKey('glow_${candle.candleKey}'),
-                    child: glowBubble,
-                  ),
-                  coordinateUnit: CoordinateUnit.point,
-                  x: candle.candleKey,
-                  y: pillY,
-                  verticalAlignment: verticalAlign,
-                  horizontalAlignment: ChartAlignment.center,
-                ));
-              }
+              foregroundAnnotations.add(CartesianChartAnnotation(
+                widget: KeyedSubtree(
+                  key: ValueKey('glow_${candle.candleKey}'),
+                  child: glowBubble,
+                ),
+                coordinateUnit: CoordinateUnit.point,
+                x: candle.candleKey,
+                y: pillY,
+                verticalAlignment: verticalAlign,
+                horizontalAlignment: ChartAlignment.center,
+              ));
             }
           }
           
