@@ -36,7 +36,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
   Future<void> _updateProfile() async {
     try {
-      await ref.read(authProvider.notifier).updateProfile(
+      await ref.read(authNotifierProvider).updateProfile(
         name: _nameController.text,
         phoneNumber: _phoneController.text,
       );
@@ -273,7 +273,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           icon: Icons.lock_reset_rounded,
           color: AppTheme.primaryCyan,
           onTap: () {
-            ref.read(authProvider.notifier).sendPasswordResetEmail(ref.read(authProvider).user?.email ?? '');
+            ref.read(authNotifierProvider).sendPasswordResetEmail(ref.read(authProvider).user?.email ?? '');
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text('Password reset email sent')),
             );
@@ -285,7 +285,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           height: 55,
           child: ElevatedButton(
             onPressed: () async {
-              await ref.read(authProvider.notifier).signOut();
+              await ref.read(authNotifierProvider).signOut();
               if (mounted) {
                 Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
               }

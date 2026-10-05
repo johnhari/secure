@@ -1176,7 +1176,7 @@ class _ReplayPlayerDialogState extends ConsumerState<ReplayPlayerDialog> with Ti
       bool isLiquidation = false;
       bool hasAdminData = false;
       
-      double bubbleScale = 5.0;
+      double bubbleScale = 3.0;
       double bubbleOpacity = 0.65;
       double bubbleGlow = 0.0;
       bool showLabel = true;
@@ -1196,7 +1196,7 @@ class _ReplayPlayerDialogState extends ConsumerState<ReplayPlayerDialog> with Ti
         buyerCount = safeParse(data['buyerCount']).toInt();
         sellerCount = safeParse(data['sellerCount']).toInt();
         bubbleScale = safeParse(data['bubbleScale']).toDouble();
-        if (bubbleScale == 0) bubbleScale = 5.0;
+        if (bubbleScale == 0) bubbleScale = 3.0;
 
         isBigSignal = data['isBigSignal'] as bool? ?? false;
         isInstitutional = data['isInstitutional'] as bool? ?? false;
@@ -1829,8 +1829,8 @@ class _AdminGlowingOrbState extends State<AdminGlowingOrb> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    // Normalize the scale factor: 5.0 maps to 1.0. Clamp between 0.2 (very small) and 4.0 (very large).
-    final double baseS = (widget.scale / 5.0).clamp(0.2, 4.0);
+    // Normalize the scale factor: 3.0 maps to 1.0. Clamp between 0.2 (very small) and 5.0 (large).
+    final double baseS = (widget.scale / 3.0).clamp(0.2, 5.0);
     final bool isPc = kIsWeb || 
                       defaultTargetPlatform == TargetPlatform.windows || 
                       defaultTargetPlatform == TargetPlatform.macOS || 
@@ -1845,9 +1845,17 @@ class _AdminGlowingOrbState extends State<AdminGlowingOrb> with SingleTickerProv
       baseColor = Colors.purpleAccent;
     }
 
-    String tagText = widget.customTag.isNotEmpty 
-        ? widget.customTag 
-        : (widget.isBuyer ? "BUY" : "SELL");
+    String tagText = widget.isBuyer ? "BUY" : "SELL";
+    if (widget.customTag.isNotEmpty) {
+      final tagUpper = widget.customTag.toUpperCase();
+      if (tagUpper.contains("VOLATIL") || 
+          tagUpper.contains("BREAKDOWN") || 
+          tagUpper.contains("BREAKOUT")) {
+        tagText = widget.isBuyer ? "BUY" : "SELL";
+      } else {
+        tagText = widget.customTag;
+      }
+    }
 
     return AnimatedBuilder(
       animation: _pulseAnimation,

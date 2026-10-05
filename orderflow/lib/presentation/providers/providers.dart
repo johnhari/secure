@@ -1,24 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/datasources/authentication_datasource.dart';
 import '../../data/datasources/websocket_datasource.dart';
 import '../../data/datasources/local_cache_datasource.dart';
 import '../../data/datasources/remote_datasource.dart';
 import '../../data/datasources/yahoo_datasource.dart';
 import '../../data/datasources/firebase_market_datasource.dart';
-import '../../data/repositories/auth_repository.dart';
 import '../../data/repositories/candle_repository.dart';
 import '../../data/repositories/orderflow_repository.dart';
 import '../../data/repositories/admin_repository.dart';
 import '../../domain/services/orderflow_service.dart';
 import 'auth_provider.dart';
 
+export 'auth_provider.dart' show authDataSourceProvider, authRepositoryProvider, authProvider, AuthState, AuthStatus, AuthNotifier;
+
 // Data Sources
 final yahooDataSourceProvider = Provider<YahooDataSource>((ref) {
   return YahooDataSource();
-});
-
-final authDataSourceProvider = Provider<AuthenticationDataSource>((ref) {
-  return AuthenticationDataSource();
 });
 
 final webSocketDataSourceProvider = Provider<WebSocketDataSource>((ref) {
@@ -35,13 +31,6 @@ final remoteDataSourceProvider = Provider<RemoteDataSource>((ref) {
 
 final firebaseMarketDataSourceProvider = Provider<FirebaseMarketDataSource>((ref) {
   return FirebaseMarketDataSource();
-});
-
-// Repositories
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  return AuthRepository(
-    authDataSource: ref.watch(authDataSourceProvider),
-  );
 });
 
 final candleRepositoryProvider = Provider<CandleRepository>((ref) {
@@ -81,4 +70,9 @@ final globalSignalsProvider = StreamProvider<List<Map<String, dynamic>>>((ref) {
   }
   final service = ref.watch(orderflowServiceProvider);
   return service.getGlobalSignalsStream(currentUserEmail: authState.user?.email);
+});
+
+final activeSignalsSummaryProvider = StreamProvider<Map<String, dynamic>?>((ref) {
+  final repo = ref.watch(candleRepositoryProvider);
+  return repo.getActiveSignalsSummaryStream();
 });

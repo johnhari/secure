@@ -137,6 +137,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
       // Wait for Auth Provider to settle
       int attempts = 0;
       while (attempts < 30) { // 3 seconds max
+        if (!mounted) return;
         try {
           final authState = ref.read(authProvider);
           if (authState.status != AuthStatus.initial && authState.status != AuthStatus.loading) {
@@ -157,6 +158,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
         }
         
         await Future.delayed(const Duration(milliseconds: 100));
+        if (!mounted) return;
         attempts++;
       }
     } catch (globalError) {
@@ -297,16 +299,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> with TickerProvider
                                 ],
                               ),
                               child: ClipOval(
-                                child: Padding(
-                                  padding: const EdgeInsets.all(12),
-                                  child: Image.asset(
-                                    'assets/images/logo.png',
-                                    fit: BoxFit.contain,
-                                    errorBuilder: (context, error, stackTrace) => Icon(
-                                      Icons.auto_graph_rounded,
-                                      size: 70 * scaleFactor,
-                                      color: AppTheme.primaryCyan,
-                                    ),
+                                child: Image.asset(
+                                  'assets/images/logo.png',
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) => Icon(
+                                    Icons.auto_graph_rounded,
+                                    size: 70 * scaleFactor,
+                                    color: AppTheme.primaryCyan,
                                   ),
                                 ),
                               ),

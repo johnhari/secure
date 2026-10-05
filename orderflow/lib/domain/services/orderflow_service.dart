@@ -9,9 +9,11 @@ import '../../data/models/candle_model.dart';
 import '../../core/constants/nifty_stocks.dart';
 import '../../core/constants/app_constants.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 /// Service for managing orderflow data (buyer/seller counts)
 class OrderflowService {
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
   final LocalCacheDataSource? _localCache;
   final CandleRepository? _candleRepository;
   static const String _collection = 'orderflow';
@@ -47,7 +49,7 @@ class OrderflowService {
     bool isMediumSignal = false,
     bool isTrap = false,
     bool isLiquidation = false,
-    double bubbleScale = 5.0,
+    double bubbleScale = 3.0,
     double bubbleOpacity = 0.65,
     double bubbleGlow = 0.0,
     bool showLabel = true,
@@ -88,10 +90,13 @@ class OrderflowService {
       'broadcastPush': adminOnly ? false : true, // Triggers Cloud Function notification
       'adminOnly': adminOnly,
       'updatedAt': FieldValue.serverTimestamp(),
-      'updatedBy': 'ADMIN', // This populates injectedBy flag
+      'updatedBy': 'ADMIN',
+      'injectedBy': 'ADMIN',
     };
 
-    await _firestore.collection(_collection).doc(docId).set(data, SetOptions(merge: true));
+    if (_firestore != null) {
+      await _firestore!.collection(_collection).doc(docId).set(data, SetOptions(merge: true));
+    }
 
     // Also cache locally if it's a "heavy" order
     if (_localCache != null && (isInstitutional || isBigSignal || isMediumSignal || isTrap || isLiquidation || buyerCount >= 10000 || sellerCount >= 10000)) {
@@ -128,11 +133,16 @@ class OrderflowService {
   }
 
   Stream<Map<String, Map<String, dynamic>>> getOrderflowStream(String symbol, {String? currentUserEmail}) {
+    final fs = _firestore;
+    if (fs == null) {
+      return Stream.value(<String, Map<String, dynamic>>{});
+    }
+
     // FIREBASE-ONLY: Stream orderflow data from Firestore, last 5 days only.
     // Query by symbol without composite index requirement, filter timestamp in memory
     final twoDaysAgo = DateTime.now().subtract(const Duration(hours: 240)).millisecondsSinceEpoch;
     
-    return _firestore
+    return fs
         .collection(_collection)
         .where('symbol', isEqualTo: symbol)
         .snapshots()
@@ -173,7 +183,7 @@ class OrderflowService {
           'isMediumSignal': docData['isMediumSignal'] == true,
           'isTrap': docData['isTrap'] == true,
           'isLiquidation': docData['isLiquidation'] == true,
-          'bubbleScale': (docData['bubbleScale'] as num?)?.toDouble() ?? 5.0,
+          'bubbleScale': (docData['bubbleScale'] as num?)?.toDouble() ?? 3.0,
           'bubbleOpacity': (docData['bubbleOpacity'] as num?)?.toDouble() ?? 0.65,
           'bubbleGlow': (docData['bubbleGlow'] as num?)?.toDouble() ?? 0.0,
           'showLabel': docData['showLabel'] != false,
@@ -192,10 +202,15 @@ class OrderflowService {
   }
 
   Stream<List<Map<String, dynamic>>> getGlobalSignalsStream({String? currentUserEmail}) {
+    final fs = _firestore;
+    if (fs == null) {
+      return Stream.value(<Map<String, dynamic>>[]);
+    }
+
     // Return all orderflow signals created today (since midnight local time).
     final now = DateTime.now();
     final startTime = DateTime(now.year, now.month, now.day).millisecondsSinceEpoch;
-    return _firestore
+    return fs
         .collection(_collection)
         .snapshots()
         .map((snapshot) {
@@ -269,13 +284,15 @@ class OrderflowService {
   }
 
   Future<Map<String, Map<String, dynamic>>> getOrderflowData(String symbol, {int? startTime, String? currentUserEmail}) async {
+    final fs = _firestore;
+    if (fs == null) return {};
     try {
       final twoDaysAgo = DateTime.now().subtract(const Duration(hours: 240)).millisecondsSinceEpoch;
       final finalStartTime = startTime != null
           ? startTime.clamp(twoDaysAgo, double.maxFinite.toInt())
           : twoDaysAgo;
 
-      final snapshot = await _firestore
+      final snapshot = await fs
           .collection(_collection)
           .where('symbol', isEqualTo: symbol)
           .get();
@@ -312,7 +329,7 @@ class OrderflowService {
           'isMediumSignal': docData['isMediumSignal'] == true,
           'isTrap': docData['isTrap'] == true,
           'isLiquidation': docData['isLiquidation'] == true,
-          'bubbleScale': (docData['bubbleScale'] as num?)?.toDouble() ?? 5.0,
+          'bubbleScale': (docData['bubbleScale'] as num?)?.toDouble() ?? 3.0,
           'bubbleOpacity': (docData['bubbleOpacity'] as num?)?.toDouble() ?? 0.65,
           'bubbleGlow': (docData['bubbleGlow'] as num?)?.toDouble() ?? 0.0,
           'showLabel': docData['showLabel'] != false,
@@ -334,11 +351,15 @@ class OrderflowService {
 
   /// RESTING/GHOST ORDERS Support
   Future<void> saveGhostOrder(GhostOrder ghost) async {
-    await _firestore.collection('ghost_orders').doc(ghost.id).set(ghost.toJson());
+    final fs = _firestore;
+    if (fs == null) return;
+    await fs.collection('ghost_orders').doc(ghost.id).set(ghost.toJson());
   }
 
   Stream<List<GhostOrder>> getGhostOrdersStream(String triggerSymbol, {String? currentUserEmail}) {
-     return _firestore
+     final fs = _firestore;
+     if (fs == null) return Stream.value(<GhostOrder>[]);
+     return fs
          .collection('ghost_orders')
          .where('triggerSymbol', isEqualTo: triggerSymbol)
          .where('isTriggered', isEqualTo: false)
@@ -357,7 +378,10 @@ class OrderflowService {
    }
 
   Future<void> realizeGhostOrder(GhostOrder ghost, DateTime candleTime) async {
-    await _firestore.collection('ghost_orders').doc(ghost.id).update({'isTriggered': true});
+    final fs = _firestore;
+    if (fs != null) {
+      await fs.collection('ghost_orders').doc(ghost.id).update({'isTriggered': true});
+    }
     await saveOrderflow(
       symbol: ghost.symbol,
       candleTime: candleTime,
@@ -375,16 +399,19 @@ class OrderflowService {
   }
 
   Future<void> wipeOrderflowForDay(String symbol) async {
-    final querySnapshot = await _firestore
-        .collection(_collection)
-        .where('symbol', isEqualTo: symbol)
-        .get();
+    final fs = _firestore;
+    if (fs != null) {
+      final querySnapshot = await fs
+          .collection(_collection)
+          .where('symbol', isEqualTo: symbol)
+          .get();
 
-    final batch = _firestore.batch();
-    for (final doc in querySnapshot.docs) {
-      batch.delete(doc.reference);
+      final batch = fs.batch();
+      for (final doc in querySnapshot.docs) {
+        batch.delete(doc.reference);
+      }
+      await batch.commit();
     }
-    await batch.commit();
     
     // Also clear local cache for this symbol
     if (_localCache != null) {
@@ -400,7 +427,10 @@ class OrderflowService {
     final docId = '${symbol}_${candleTime.millisecondsSinceEpoch}';
     
     // Delete from Firestore
-    await _firestore.collection(_collection).doc(docId).delete();
+    final fs = _firestore;
+    if (fs != null) {
+      await fs.collection(_collection).doc(docId).delete();
+    }
 
     // Remove from local cache
     if (_localCache != null) {
@@ -414,11 +444,13 @@ class OrderflowService {
   }
 
   Future<Map<String, Map<String, dynamic>>> getOrderflowForDate(String symbol, DateTime date, {String? currentUserEmail}) async {
+    final fs = _firestore;
+    if (fs == null) return {};
     try {
       final startOfDay = DateTime(date.year, date.month, date.day, 0, 0, 0).millisecondsSinceEpoch;
       final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59).millisecondsSinceEpoch;
       
-      final snapshot = await _firestore
+      final snapshot = await fs
           .collection(_collection)
           .where('symbol', isEqualTo: symbol)
           .where('candleTime', isGreaterThanOrEqualTo: startOfDay)
@@ -445,7 +477,7 @@ class OrderflowService {
           'isMediumSignal': docData['isMediumSignal'] as bool? ?? false,
           'isTrap': docData['isTrap'] as bool? ?? false,
           'isLiquidation': docData['isLiquidation'] as bool? ?? false,
-          'bubbleScale': (docData['bubbleScale'] as num?)?.toDouble() ?? 5.0,
+          'bubbleScale': (docData['bubbleScale'] as num?)?.toDouble() ?? 3.0,
           'bubbleOpacity': (docData['bubbleOpacity'] as num?)?.toDouble() ?? 0.65,
           'bubbleGlow': (docData['bubbleGlow'] as num?)?.toDouble() ?? 0.0,
           'showLabel': docData['showLabel'] as bool? ?? true,
@@ -474,7 +506,7 @@ class OrderflowService {
     bool isMediumSignal = false,
     bool isTrap = false,
     bool isLiquidation = false,
-    double bubbleScale = 5.0,
+    double bubbleScale = 3.0,
     double bubbleOpacity = 0.65,
     double bubbleGlow = 0.0,
     bool showLabel = true,

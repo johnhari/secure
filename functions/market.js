@@ -82,9 +82,13 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const fetchYahooData = async (symbol, attempt = 1) => {
     const yahooSymbolMap = {
         'NIFTY50': '^NSEI',
+        'NIFTY': '^NSEI',
         'BANKNIFTY': '^NSEBANK',
         'FINNIFTY': '^CNXFIN',
-        'MIDCAPNIFTY': '^NSEMDCP50'
+        'SENSEX': '^BSESN',
+        'MIDCAPNIFTY': '^NSEMDCP50',
+        'MIDCPNIFTY': '^NSMIDCP',
+        'INDIA_VIX': '^INDIAVIX'
     };
 
     let yahooSymbol = yahooSymbolMap[symbol];
@@ -145,7 +149,8 @@ const fetchYahooData = async (symbol, attempt = 1) => {
                 high: quote.high,
                 low: quote.low,
                 close: quote.close,
-                volume: quote.volume
+                volume: quote.volume,
+                meta: result.meta
             };
         } catch (error) {
             lastError = error;
@@ -170,17 +175,40 @@ const fetchYahooData = async (symbol, attempt = 1) => {
 };
 
 /**
- * Aggregate data into 5-minute candles
+ * Aggregate data into 5-minute candles strictly within NSE market hours (09:15 to 15:40 IST)
+ * Last valid 5m candle starts at 15:35 (runs 15:35 to 15:40).
+ * Any post-market settlement tick (>= 15:40) is folded into the 15:35 candle, NOT creating a post-close candle.
+ * Official EOD closing price from meta is applied to the 15:35 candle.
  */
 const aggregateCandles = (data) => {
     const candles = {};
+    const meta = data.meta || {};
 
     for (let i = 0; i < data.timestamps.length; i++) {
         // Skip null data points which Yahoo occasionally returns
         if (data.open[i] === null || data.close[i] === null) continue;
 
         const timestamp = data.timestamps[i] * 1000; // Convert to milliseconds
-        const candleKey = Math.floor(timestamp / (5 * 60 * 1000)) * (5 * 60 * 1000); // 5-minute intervals
+        const ist = moment(timestamp).tz('Asia/Kolkata');
+        const dayOfWeek = ist.day();
+        // Skip weekends
+        if (dayOfWeek === 0 || dayOfWeek === 6) continue;
+
+        const minuteOfDay = ist.hour() * 60 + ist.minute();
+        // Pre-market check: skip before 09:15 IST (555 min)
+        if (minuteOfDay < 555) continue;
+
+        // In NSE, trading & post-close session runs until 15:40 IST (940 min).
+        // Any settlement tick arriving at or after 15:40 belongs to the session closing candle.
+        let candleTime;
+        if (minuteOfDay >= 940) {
+            candleTime = ist.clone().hour(15).minute(35).second(0).millisecond(0).valueOf();
+        } else {
+            const bucketMinute = Math.floor(ist.minute() / 5) * 5;
+            candleTime = ist.clone().minute(bucketMinute).second(0).millisecond(0).valueOf();
+        }
+
+        const candleKey = candleTime;
 
         if (!candles[candleKey]) {
             candles[candleKey] = {
@@ -190,7 +218,6 @@ const aggregateCandles = (data) => {
                 close: data.close[i],
                 volume: data.volume[i] || 0,
                 timestamp: candleKey,
-                // ✅ Required by CandleModel.fromRTDB
                 timeStart: candleKey,
                 timeEnd: candleKey + (5 * 60 * 1000),
                 candleKey: candleKey.toString()
@@ -200,6 +227,52 @@ const aggregateCandles = (data) => {
             candles[candleKey].low = Math.min(candles[candleKey].low, data.low[i]);
             candles[candleKey].close = data.close[i];
             candles[candleKey].volume += (data.volume[i] || 0);
+        }
+    }
+
+    // Apply official NSE EOD closing price from meta to final session candle
+    const sortedKeys = Object.keys(candles).sort((a, b) => Number(a) - Number(b));
+    if (sortedKeys.length > 0 && meta) {
+        const daysMap = {};
+        for (const key of sortedKeys) {
+            const dayStr = moment(Number(key)).tz('Asia/Kolkata').format('YYYYMMDD');
+            if (!daysMap[dayStr]) daysMap[dayStr] = [];
+            daysMap[dayStr].push(candles[key]);
+        }
+
+        const todayIst = moment().tz('Asia/Kolkata');
+        const todayStr = todayIst.format('YYYYMMDD');
+        const currentMinuteOfDay = todayIst.hour() * 60 + todayIst.minute();
+        const sortedDays = Object.keys(daysMap).sort();
+
+        // 1. If today has finished trading (>= 15:40 IST = 940 min, 3:40 PM) or on weekend/after-hours:
+        // Update today's final candle close with meta.regularMarketPrice (the official NSE EOD close)
+        if (daysMap[todayStr] && currentMinuteOfDay >= 940 && meta.regularMarketPrice && meta.regularMarketPrice > 0) {
+            const todayCandles = daysMap[todayStr];
+            const lastCandle = todayCandles[todayCandles.length - 1];
+            lastCandle.close = meta.regularMarketPrice;
+            lastCandle.high = Math.max(lastCandle.high, meta.regularMarketPrice);
+            lastCandle.low = Math.min(lastCandle.low, meta.regularMarketPrice);
+        }
+
+        // 2. Ensure previous completed trading day has official previous close
+        const prevClose = meta.chartPreviousClose || meta.previousClose;
+        if (prevClose && prevClose > 0) {
+            const pastDays = sortedDays.filter(d => d < todayStr || (d === todayStr && currentMinuteOfDay >= 940));
+            let prevTradingDayStr = null;
+            if (currentMinuteOfDay < 940) {
+                prevTradingDayStr = pastDays[pastDays.length - 1];
+            } else if (pastDays.length >= 2) {
+                prevTradingDayStr = pastDays[pastDays.length - 2];
+            }
+
+            if (prevTradingDayStr && daysMap[prevTradingDayStr]) {
+                const prevDayCandles = daysMap[prevTradingDayStr];
+                const lastPrevCandle = prevDayCandles[prevDayCandles.length - 1];
+                lastPrevCandle.close = prevClose;
+                lastPrevCandle.high = Math.max(lastPrevCandle.high, prevClose);
+                lastPrevCandle.low = Math.min(lastPrevCandle.low, prevClose);
+            }
         }
     }
 
@@ -509,7 +582,7 @@ exports.propagateOrderflow = async (niftyOrderflow) => {
                         symbol: stockSymbol,
                         buyerCount: stockBuyer,
                         sellerCount: stockSeller,
-                        bubbleScale: niftyOrderflow.bubbleScale !== undefined ? niftyOrderflow.bubbleScale : 5.0,
+                        bubbleScale: niftyOrderflow.bubbleScale !== undefined ? niftyOrderflow.bubbleScale : 3.0,
                         bubbleOpacity: niftyOrderflow.bubbleOpacity !== undefined ? niftyOrderflow.bubbleOpacity : 0.65,
                         bubbleGlow: niftyOrderflow.bubbleGlow !== undefined ? niftyOrderflow.bubbleGlow : 0.0,
                         showLabel: niftyOrderflow.showLabel !== undefined ? niftyOrderflow.showLabel : true,
@@ -548,65 +621,129 @@ let cachedHeatmapData = null;
 let lastHeatmapFetchTime = 0;
 
 /**
- * Fetch current trading data for all Nifty 50 stocks in chunks of 15 and write to RTDB
+ * Fetch current trading data for all Nifty 50 stocks with live points and percentages
  */
 exports.fetchHeatmapData = async () => {
     try {
         const now = Date.now();
-        // Cache for 5 minutes (300,000 ms) to avoid Yahoo Finance rate limits
-        if (cachedHeatmapData && (now - lastHeatmapFetchTime < 300000)) {
+        // Dynamic cache: 30 seconds for live market sync
+        if (cachedHeatmapData && (now - lastHeatmapFetchTime < 30000)) {
             console.log('[Heatmap] Returning cached heatmap data.');
             return cachedHeatmapData;
         }
 
-        console.log('[Heatmap] Starting heatmap data fetch from Yahoo...');
+        console.log('[Heatmap] Starting heatmap data fetch with live points...');
         const heatmap = {};
-        const batchSize = 15;
 
-        for (let i = 0; i < NIFTY_STOCKS.length; i += batchSize) {
-            const chunk = NIFTY_STOCKS.slice(i, i + batchSize);
-            const symbols = chunk.map(s => `${s}.NS`).join(',');
-            const url = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${symbols}&range=1d&interval=5m`;
-
-            const headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-                'Accept': '*/*',
-                'Accept-Language': 'en-US,en;q=0.9',
-                'Origin': 'https://finance.yahoo.com',
-                'Referer': 'https://finance.yahoo.com/'
+        // 1. Primary: TradingView India Scanner (fetches 49+ stocks in single fast request)
+        try {
+            const mapTv = (s) => {
+                if (s === 'BAJAJ-AUTO') return 'NSE:BAJAJ_AUTO';
+                if (s === 'M&M') return 'NSE:M&M';
+                if (s === 'TATAMOTORS') return 'NSE:TMCV';
+                return `NSE:${s}`;
             };
 
-            try {
-                const response = await axios.get(url, { headers, timeout: 8000 });
-                if (response.data && response.data.spark && response.data.spark.result) {
-                    for (const result of response.data.spark.result) {
-                        const yahooSymbol = result.symbol;
-                        const symbol = yahooSymbol.replace('.NS', '');
-                        const meta = result.response[0]?.meta;
-                        if (meta) {
-                            const price = meta.regularMarketPrice;
-                            const prevClose = meta.chartPreviousClose !== undefined ? meta.chartPreviousClose : meta.previousClose;
-                            const changePercent = prevClose ? ((price - prevClose) / prevClose) * 100 : 0.0;
-                            const dayOpen = meta.regularMarketDayOpen || meta.regularMarketPrice || 0;
-                            const dayHigh = meta.regularMarketDayHigh || meta.regularMarketPrice || 0;
-                            const dayLow = meta.regularMarketDayLow || meta.regularMarketPrice || 0;
+            const tvTickers = NIFTY_STOCKS.map(mapTv);
+            const tvUrl = 'https://scanner.tradingview.com/india/scan';
+            const tvResp = await axios.post(tvUrl, {
+                symbols: { tickers: tvTickers },
+                columns: ['name', 'close', 'change', 'change_abs', 'open', 'high', 'low', 'volume', 'description']
+            }, {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                timeout: 8000
+            });
 
-                            heatmap[symbol] = {
-                                price: price !== undefined ? price : 0.0,
-                                open: dayOpen,
-                                high: dayHigh,
-                                low: dayLow,
-                                changePercent: changePercent,
-                                volume: meta.regularMarketVolume || 0,
-                                name: NIFTY_STOCKS_NAMES[symbol] || symbol,
-                                symbol: symbol,
-                                lastUpdate: Date.now()
-                            };
-                        }
+            if (tvResp.data && tvResp.data.data) {
+                const lookup = {};
+                for (const item of tvResp.data.data) {
+                    lookup[item.s] = item.d;
+                }
+
+                for (const symbol of NIFTY_STOCKS) {
+                    const tvTicker = mapTv(symbol);
+                    if (lookup[tvTicker]) {
+                        const d = lookup[tvTicker];
+                        const price = d[1] || 0.0;
+                        const changePercent = d[2] || 0.0;
+                        const changePts = d[3] || 0.0;
+                        const dayOpen = d[4] || price;
+                        const dayHigh = d[5] || price;
+                        const dayLow = d[6] || price;
+                        const volume = d[7] || 0;
+                        const name = d[8] || NIFTY_STOCKS_NAMES[symbol] || symbol;
+
+                        heatmap[symbol] = {
+                            price: price,
+                            change: changePts, // Real Points Change!
+                            changePercent: changePercent,
+                            open: dayOpen,
+                            high: dayHigh,
+                            low: dayLow,
+                            volume: volume,
+                            name: name,
+                            symbol: symbol,
+                            lastUpdate: Date.now()
+                        };
                     }
                 }
-            } catch (err) {
-                console.error(`[Heatmap] Error fetching chunk starting at index ${i}:`, err.message);
+            }
+        } catch (tvErr) {
+            console.warn('[Heatmap] TradingView scan error, falling back to Yahoo:', tvErr.message);
+        }
+
+        // 2. Secondary: Yahoo Spark for any missing stocks
+        const missing = NIFTY_STOCKS.filter(s => !heatmap[s]);
+        if (missing.length > 0) {
+            console.log(`[Heatmap] Fetching ${missing.length} missing stocks via Yahoo...`);
+            const batchSize = 15;
+            for (let i = 0; i < missing.length; i += batchSize) {
+                const chunk = missing.slice(i, i + batchSize);
+                const symbols = chunk.map(s => `${s}.NS`).join(',');
+                const url = `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${symbols}&range=1d&interval=5m`;
+                const headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'Origin': 'https://finance.yahoo.com',
+                    'Referer': 'https://finance.yahoo.com/'
+                };
+
+                try {
+                    const response = await axios.get(url, { headers, timeout: 6000 });
+                    if (response.data && response.data.spark && response.data.spark.result) {
+                        for (const result of response.data.spark.result) {
+                            const yahooSymbol = result.symbol;
+                            const symbol = yahooSymbol.replace('.NS', '');
+                            const meta = result.response[0]?.meta;
+                            if (meta) {
+                                const price = meta.regularMarketPrice || 0.0;
+                                const prevClose = meta.chartPreviousClose !== undefined ? meta.chartPreviousClose : (meta.previousClose || price);
+                                const changePts = price - prevClose;
+                                const changePercent = prevClose ? (changePts / prevClose) * 100 : 0.0;
+                                const dayOpen = meta.regularMarketDayOpen || price;
+                                const dayHigh = meta.regularMarketDayHigh || price;
+                                const dayLow = meta.regularMarketDayLow || price;
+
+                                heatmap[symbol] = {
+                                    price: price,
+                                    change: changePts,
+                                    changePercent: changePercent,
+                                    open: dayOpen,
+                                    high: dayHigh,
+                                    low: dayLow,
+                                    volume: meta.regularMarketVolume || 0,
+                                    name: NIFTY_STOCKS_NAMES[symbol] || symbol,
+                                    symbol: symbol,
+                                    lastUpdate: Date.now()
+                                };
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.error(`[Heatmap] Yahoo chunk error:`, err.message);
+                }
             }
         }
 
@@ -614,7 +751,7 @@ exports.fetchHeatmapData = async () => {
             await db.ref('market_data/nifty50_heatmap').set(heatmap);
             cachedHeatmapData = heatmap;
             lastHeatmapFetchTime = Date.now();
-            console.log(`[Heatmap] Successfully updated heatmap data in RTDB for ${Object.keys(heatmap).length} stocks.`);
+            console.log(`[Heatmap] Successfully updated heatmap data in RTDB for ${Object.keys(heatmap).length} stocks with live points.`);
         } else {
             console.warn('[Heatmap] Heatmap aggregation returned empty.');
         }
@@ -626,4 +763,145 @@ exports.fetchHeatmapData = async () => {
     }
 };
 
+/**
+ * Fetch and update Pre-Market Bias Data
+ * Fetches TradingView Scanner + NSE FII/DII + Yahoo Fallback, writes to RTDB
+ */
+exports.fetchPreMarketBiasData = async () => {
+    try {
+        console.log('[PreMarketBias] Fetching real live bias data...');
+        const biasData = {
+            giftNifty: 0,
+            giftNiftyChange: 0,
+            giftNiftyPct: 0,
+            expectedOpen: 'FLAT OPEN',
+            expectedOpenType: 'FLAT',
+            niftyPrevClose: 0,
+            fiiNet: 0,
+            diiNet: 0,
+            fiiDiiDate: '',
+            globalFutures: {},
+            lastUpdated: Date.now()
+        };
+
+        // 1. TradingView Global Scanner
+        try {
+            const tvUrl = 'https://scanner.tradingview.com/global/scan';
+            const tvBody = {
+                symbols: {
+                    tickers: [
+                        'NSEIX:NIFTY1!',
+                        'CBOT_MINI:YM1!',
+                        'CME_MINI:NQ1!',
+                        'XETR:DAX',
+                        'TVC:NI225',
+                        'NSE:NIFTY'
+                    ]
+                },
+                columns: ['name', 'close', 'change', 'change_abs', 'description']
+            };
+
+            const tvRes = await axios.post(tvUrl, tvBody, {
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                },
+                timeout: 7000
+            });
+
+            if (tvRes.data && tvRes.data.data) {
+                for (const item of tvRes.data.data) {
+                    const s = item.s;
+                    const d = item.d;
+                    const close = d[1];
+                    const pct = d[2];
+                    const chg = d[3];
+
+                    if (s === 'NSEIX:NIFTY1!') {
+                        biasData.giftNifty = close || 0;
+                        biasData.giftNiftyPct = pct || 0;
+                        biasData.giftNiftyChange = chg || 0;
+                    } else if (s === 'NSE:NIFTY') {
+                        biasData.niftyPrevClose = (close && chg) ? (close - chg) : close;
+                    } else if (s === 'CBOT_MINI:YM1!') {
+                        biasData.globalFutures['DOW FUT'] = `${chg >= 0 ? '+' : ''}${Math.round(chg)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
+                    } else if (s === 'CME_MINI:NQ1!') {
+                        biasData.globalFutures['NASDAQ FUT'] = `${chg >= 0 ? '+' : ''}${chg.toFixed(1)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
+                    } else if (s === 'XETR:DAX') {
+                        biasData.globalFutures['DAX'] = `${chg >= 0 ? '+' : ''}${chg.toFixed(1)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
+                    } else if (s === 'TVC:NI225') {
+                        biasData.globalFutures['NIKKEI'] = `${chg >= 0 ? '+' : ''}${Math.round(chg)} (${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%)`;
+                    }
+                }
+            }
+        } catch (tvErr) {
+            console.warn('[PreMarketBias] TradingView scanner error:', tvErr.message);
+        }
+
+        // 2. NSE FII / DII Provisional Data
+        try {
+            const nseRes = await axios.get('https://www.nseindia.com/api/fiidiiTradeReact', {
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+                    'Accept': 'application/json, text/plain, */*',
+                    'Referer': 'https://www.nseindia.com/'
+                },
+                timeout: 6000
+            });
+
+            if (Array.isArray(nseRes.data)) {
+                for (const row of nseRes.data) {
+                    const cat = (row.category || '').toUpperCase();
+                    const net = parseFloat(row.netValue) || 0;
+                    if (cat.includes('FII') || cat.includes('FPI')) {
+                        biasData.fiiNet = net;
+                        biasData.fiiDiiDate = row.date || biasData.fiiDiiDate;
+                    } else if (cat.includes('DII')) {
+                        biasData.diiNet = net;
+                        biasData.fiiDiiDate = row.date || biasData.fiiDiiDate;
+                    }
+                }
+            }
+        } catch (nseErr) {
+            console.warn('[PreMarketBias] NSE FII/DII fetch error:', nseErr.message);
+        }
+
+        // 3. Expected Open Calculation
+        let gap = 0;
+        if (biasData.niftyPrevClose > 0 && biasData.giftNifty > 0) {
+            gap = biasData.giftNifty - biasData.niftyPrevClose;
+        } else {
+            gap = biasData.giftNiftyChange;
+        }
+
+        const absGap = Math.abs(gap);
+        const minPts = Math.round(absGap * 0.85);
+        const maxPts = Math.round(absGap * 1.15);
+
+        if (gap >= 35) {
+            biasData.expectedOpen = `GAP UP (+${minPts} to +${maxPts} points)`;
+            biasData.expectedOpenType = 'GAP UP';
+        } else if (gap <= -35) {
+            biasData.expectedOpen = `GAP DOWN (-${maxPts} to -${minPts} points)`;
+            biasData.expectedOpenType = 'GAP DOWN';
+        } else {
+            const sign = gap >= 0 ? '+' : '';
+            biasData.expectedOpen = `FLAT OPEN (${sign}${Math.round(gap)} points)`;
+            biasData.expectedOpenType = 'FLAT';
+        }
+
+        // 4. Save to Firebase Realtime Database
+        if (biasData.giftNifty > 0) {
+            await db.ref('market_data/pre_market_bias').set(biasData);
+            console.log('[PreMarketBias] Successfully updated pre_market_bias in RTDB.');
+        }
+
+        return biasData;
+    } catch (error) {
+        console.error('[PreMarketBias] Fatal error updating pre-market bias:', error.message);
+        return null;
+    }
+};
+
 exports.NIFTY_STOCKS = NIFTY_STOCKS;
+exports.NIFTY_STOCKS_NAMES = NIFTY_STOCKS_NAMES;

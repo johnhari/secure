@@ -16,14 +16,25 @@ class LocalCacheDataSource {
     await cleanupOldData();
   }
 
+  bool _isValidMarketHours(CandleModel c) {
+    if (c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0 || c.timeStart.year < 2000) return false;
+    final ist = c.timeStart.toUtc().add(const Duration(hours: 5, minutes: 30));
+    if (!YahooDataSource.isTradingDay(ist)) return false;
+    final minuteOfDay = ist.hour * 60 + ist.minute;
+    return minuteOfDay >= 555 && minuteOfDay <= 935; // 09:15 to 15:40 IST (last 5m candle starts 15:35, market closes 15:40)
+  }
+
   /// Cache candles for an instrument
   Future<void> cacheCandles(String symbol, List<CandleModel> candles) async {
     if (_candleBox == null) await initialize();
 
+    // Sanitize: filter out invalid and after-hours orphan candles (e.g. 15:35)
+    final sanitizedCandles = candles.where(_isValidMarketHours).toList();
+
     // Keep only the latest candles
-    final candlesToCache = candles.length > AppConstants.maxCachedCandles
-        ? candles.sublist(candles.length - AppConstants.maxCachedCandles)
-        : candles;
+    final candlesToCache = sanitizedCandles.length > AppConstants.maxCachedCandles
+        ? sanitizedCandles.sublist(sanitizedCandles.length - AppConstants.maxCachedCandles)
+        : sanitizedCandles;
 
     final candlesJson = candlesToCache.map((c) => c.toJson()).toList();
     await _candleBox!.put(symbol, {'candles': candlesJson});
@@ -40,6 +51,7 @@ class LocalCacheDataSource {
       final candlesJson = (data['candles'] as List).cast<Map<dynamic, dynamic>>();
       return candlesJson
           .map((json) => CandleModel.fromJson(Map<String, dynamic>.from(json)))
+          .where(_isValidMarketHours)
           .toList();
     } catch (e) {
       print('Error reading cached candles: $e');

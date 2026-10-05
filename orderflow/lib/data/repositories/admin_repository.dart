@@ -26,6 +26,7 @@ class AdminRepository {
   /// Get users directly from Firestore (to bypass Cloud Functions)
   Future<List<UserProfile>> getUsersDirect({bool? isApproved}) async {
     final firestore = _remoteDataSource.firestore;
+    if (firestore == null) return [];
     Query query = firestore.collection('users');
     
     if (isApproved != null) {
@@ -46,8 +47,10 @@ class AdminRepository {
     DateTime? expiryDate,
     bool? isCanceled,
     String? subscriptionType, // 'index_only' | 'index_and_stocks'
+    bool? allowDualDevice,
   }) async {
     final firestore = _remoteDataSource.firestore;
+    if (firestore == null) return;
     final updates = <String, dynamic>{
       'isApproved': isApproved,
       'approvedAt': isApproved ? DateTime.now().toIso8601String() : null,
@@ -62,6 +65,10 @@ class AdminRepository {
     }
     if (subscriptionType != null) {
       updates['subscriptionType'] = subscriptionType;
+    }
+    if (allowDualDevice != null) {
+      updates['allowDualDevice'] = allowDualDevice;
+      updates['allow1Mobile1Pc'] = allowDualDevice;
     }
 
     await firestore.collection('users').doc(uid).update(updates);
@@ -98,13 +105,26 @@ class AdminRepository {
   }
 
   /// Reset bound hardware ID for a user (Admin action)
-  Future<void> resetHardwareId({required String uid}) async {
+  /// If [slot] is provided ('mobile' or 'pc'), only resets the hardware lock for that specific device category.
+  Future<void> resetHardwareId({required String uid, String? slot}) async {
     final firestore = _remoteDataSource.firestore;
-    await firestore.collection('users').doc(uid).update({
-      'boundDeviceId': FieldValue.delete(),
-      'boundMobileDeviceId': FieldValue.delete(),
-      'boundWindowsDeviceId': FieldValue.delete(),
-    });
+    if (firestore == null) return;
+    if (slot == 'mobile') {
+      await firestore.collection('users').doc(uid).update({
+        'boundMobileDeviceId': FieldValue.delete(),
+      });
+    } else if (slot == 'pc') {
+      await firestore.collection('users').doc(uid).update({
+        'boundWindowsDeviceId': FieldValue.delete(),
+        'boundDeviceId': FieldValue.delete(),
+      });
+    } else {
+      await firestore.collection('users').doc(uid).update({
+        'boundDeviceId': FieldValue.delete(),
+        'boundMobileDeviceId': FieldValue.delete(),
+        'boundWindowsDeviceId': FieldValue.delete(),
+      });
+    }
   }
 }
 

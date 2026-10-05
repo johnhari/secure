@@ -92,7 +92,7 @@ exports.updateUserStatus = async (req, res) => {
         verifyAdmin(user);
 
         const uid = req.path.split('/').pop();
-        const { isApproved } = req.body;
+        const { isApproved, allowDualDevice } = req.body;
 
         if (isApproved === undefined) {
             return res.status(400).json({ error: 'isApproved field is required' });
@@ -102,11 +102,16 @@ exports.updateUserStatus = async (req, res) => {
         const userDoc = await db.collection('users').doc(uid).get();
         const wasApproved = userDoc.exists ? userDoc.data().isApproved : false;
 
-        await db.collection('users').doc(uid).update({
+        const updates = {
             isApproved: isApproved,
             approvedAt: isApproved ? admin.firestore.FieldValue.serverTimestamp() : null,
             approvedBy: isApproved ? user.uid : null
-        });
+        };
+        if (allowDualDevice !== undefined) {
+            updates.allowDualDevice = allowDualDevice;
+        }
+
+        await db.collection('users').doc(uid).update(updates);
 
         // #10: Keep counter doc in sync atomically
         const approvedDelta = (isApproved && !wasApproved) ? 1 : (!isApproved && wasApproved) ? -1 : 0;

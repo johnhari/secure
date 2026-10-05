@@ -186,15 +186,39 @@ class YahooFinanceDataSource {
       final price = regularMarketPrice.toDouble();
       final lastCandle = _candles.last;
       
-      // Calculate which 5-minute bucket we're in
       final now = DateTime.now();
+      final istNow = now.toUtc().add(const Duration(hours: 5, minutes: 30));
+      final nowMinute = istNow.hour * 60 + istNow.minute;
+
+      // In NSE, market trading and closing session runs until 15:40 IST (last 5m candle starts 15:35 = 935 min)
+      // When market is closed (>= 15:40 IST = 940 min), do NOT create a new candle; update closing candle!
+      if (nowMinute >= 940) {
+        final updatedCandle = CandleModel(
+          symbol: lastCandle.symbol,
+          candleKey: lastCandle.candleKey,
+          timeStart: lastCandle.timeStart,
+          timeEnd: lastCandle.timeEnd,
+          open: lastCandle.open,
+          high: price > lastCandle.high ? price : lastCandle.high,
+          low: price < lastCandle.low ? price : lastCandle.low,
+          close: price,
+          volume: lastCandle.volume,
+          buyerCount: lastCandle.buyerCount,
+          sellerCount: lastCandle.sellerCount,
+        );
+        _candles[_candles.length - 1] = updatedCandle;
+        _candleController.add(updatedCandle);
+        return;
+      }
+
+      // Calculate which 5-minute bucket we're in
       final currentBucketStart = DateTime(
         now.year, now.month, now.day, 
         now.hour, (now.minute ~/ 5) * 5
       );
 
-      // Check if we need a new candle or update existing
-      if (lastCandle.timeStart.isBefore(currentBucketStart)) {
+      // Check if we need a new candle or update existing (strictly <= 15:35 IST, closing at 15:40)
+      if (lastCandle.timeStart.isBefore(currentBucketStart) && nowMinute <= 935) {
         // Create new candle
         final candleKey = '${_currentSymbol}_5m_${currentBucketStart.millisecondsSinceEpoch ~/ 1000}';
         final newCandle = CandleModel(

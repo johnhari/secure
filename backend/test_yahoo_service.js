@@ -21,6 +21,13 @@ async function testYahoo() {
         const bankNiftyCandles = await service.fetchIntradayCandles('BANKNIFTY');
         console.log(`Success: Received ${bankNiftyCandles.length} candles for BANKNIFTY`);
 
+        console.log('\nFetching SENSEX historical candles...');
+        const sensexCandles = await service.fetchIntradayCandles('SENSEX');
+        console.log(`Success: Received ${sensexCandles.length} candles for SENSEX`);
+        if (sensexCandles.length > 0) {
+            console.log('Last SENSEX candle:', sensexCandles[sensexCandles.length - 1]);
+        }
+
         console.log('\nStarting polling for live ticks (will wait 15 seconds)...');
         service.startPolling();
 

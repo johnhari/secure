@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/candle_model.dart';
@@ -30,7 +31,8 @@ class YahooDataSource {
     'NIFTYPSE': '^CNXPSE',
   };
 
-  /// NSE market open/close in IST (hours, minutes)
+  /// NSE trading hours in IST (09:15 to 15:40 IST, 3:40 PM)
+  /// Last 5m candle starts at 15:35 and closes at 15:40.
   static const int _marketOpenHour = 9;
   static const int _marketOpenMinute = 15;
   static const int _marketCloseHour = 15;
@@ -84,15 +86,18 @@ class YahooDataSource {
   }
 
   /// Returns true if the given DateTime falls within NSE trading hours (IST)
-  bool _isWithinMarketHours(DateTime time) {
+  /// Market session runs from 09:15 to 15:40 IST (3:40 PM).
+  static bool isWithinMarketHours(DateTime time) {
     // Convert to IST (UTC+5:30)
     final istTime = time.toUtc().add(const Duration(hours: 5, minutes: 30));
+    if (!isTradingDay(istTime)) return false;
     
-    const openMinutes = _marketOpenHour * 60 + _marketOpenMinute;
-    const closeMinutes = _marketCloseHour * 60 + _marketCloseMinute;
+    const openMinutes = _marketOpenHour * 60 + _marketOpenMinute; // 555 (09:15)
+    const closeMinutes = _marketCloseHour * 60 + _marketCloseMinute; // 940 (15:40)
     final candleMinutes = istTime.hour * 60 + istTime.minute;
     
-    return candleMinutes >= openMinutes && candleMinutes < closeMinutes;
+    // Valid trading hours are 09:15 (555) through 15:40 (940)
+    return candleMinutes >= openMinutes && candleMinutes <= closeMinutes;
   }
 
   // ── #1 + #5: Compute last N trading days (weekday & holiday-aware) ──────────
@@ -133,9 +138,48 @@ class YahooDataSource {
     return ua;
   }
 
+  Future<List<CandleModel>> _fetchFromCloudFunction(String symbol) async {
+    try {
+      final uri = Uri.parse('https://us-central1-mst7-3fb55.cloudfunctions.net/apiMarketData?symbol=$symbol');
+      final response = await _client.get(uri).timeout(const Duration(seconds: 12));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final list = (data is Map && data['candles'] is List) 
+            ? data['candles'] as List 
+            : (data is List ? data : null);
+        if (list != null && list.isNotEmpty) {
+          final List<CandleModel> result = [];
+          for (final item in list) {
+            if (item is Map<String, dynamic>) {
+              result.add(CandleModel.fromJson(item));
+            } else if (item is Map) {
+              result.add(CandleModel.fromJson(Map<String, dynamic>.from(item)));
+            }
+          }
+          if (result.isNotEmpty) {
+            print('YahooDataSource [$symbol]: Successfully fetched ${result.length} live candles from Cloud Function');
+            return result;
+          }
+        }
+      }
+    } catch (e) {
+      print('YahooDataSource [$symbol]: Cloud Function fetch error: $e');
+    }
+    return [];
+  }
+
   /// Fetch historical candles from Yahoo Finance.
   Future<List<CandleModel>> fetchHistoricalCandles(String symbol) async {
     try {
+      // 1. On Web, Cloud Function is primary to bypass browser CORS completely
+      if (kIsWeb) {
+        final cfCandles = await _fetchFromCloudFunction(symbol);
+        if (cfCandles.isNotEmpty) {
+          final cutoff = lastNTradingDaysStart(3);
+          return cfCandles.where((c) => !c.timeStart.isBefore(cutoff)).toList();
+        }
+      }
+
       var yahooSymbol = yahooSymbolMap[symbol];
       if (yahooSymbol == null) {
         if (symbol.startsWith('^') || symbol.endsWith('.NS')) {
@@ -150,8 +194,17 @@ class YahooDataSource {
       final period1 = cutoff.millisecondsSinceEpoch ~/ 1000;
       final period2 = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
-      // Try query2 first as it's often less throttled
-      return await _fetchWithRetry(yahooSymbol, symbol, period1, period2, cutoff);
+      // Try query2/query1 first on native
+      var candles = await _fetchWithRetry(yahooSymbol, symbol, period1, period2, cutoff);
+      if (candles.isNotEmpty) return candles;
+
+      // Fallback to Cloud Function if direct Yahoo was throttled/failed on native
+      final cfCandles = await _fetchFromCloudFunction(symbol);
+      if (cfCandles.isNotEmpty) {
+        return cfCandles.where((c) => !c.timeStart.isBefore(cutoff)).toList();
+      }
+
+      return [];
     } catch (e) {
       print('YahooDataSource Error: $e');
       return [];
@@ -281,7 +334,7 @@ class YahooDataSource {
       final closes = List<dynamic>.from(quote['close'] ?? []);
       final volumes = List<dynamic>.from(quote['volume'] ?? []);
 
-      final List<CandleModel> candles = [];
+      final Map<int, CandleModel> bucketMap = {};
 
       for (var i = 0; i < (timestamps as List).length; i++) {
         if (i >= opens.length || opens[i] == null ||
@@ -291,34 +344,125 @@ class YahooDataSource {
           continue;
         }
 
-        final timestamp = (timestamps[i] as int) * 1000;
-        final timeStart = DateTime.fromMillisecondsSinceEpoch(timestamp).toLocal();
+        final rawTimestamp = (timestamps[i] as int) * 1000;
+        final rawTime = DateTime.fromMillisecondsSinceEpoch(rawTimestamp).toLocal();
+        final istTime = rawTime.toUtc().add(const Duration(hours: 5, minutes: 30));
         
-        if (!_isWithinMarketHours(timeStart)) continue;
-        if (timeStart.isBefore(cutoff)) continue;
+        if (!isTradingDay(istTime)) continue;
+        if (rawTime.isBefore(cutoff)) continue;
 
-        candles.add(CandleModel(
-          symbol: originalSymbol,
-          timeStart: timeStart,
-          timeEnd: timeStart.add(const Duration(minutes: 5)),
-          open: (opens[i] as num).toDouble(),
-          high: (highs[i] as num).toDouble(),
-          low: (lows[i] as num).toDouble(),
-          close: (closes[i] as num).toDouble(),
-          volume: i < volumes.length ? (volumes[i] as num?)?.toInt() ?? 0 : 0,
-          candleKey: timestamp.toString(),
-        ));
+        final candleMinutes = istTime.hour * 60 + istTime.minute;
+        if (candleMinutes < 555) continue; // Skip pre-market data before 09:15 IST
+
+        // In NSE, trading and closing session runs until 15:40 IST (940 min).
+        // Any post-close tick arriving at or after 15:40 belongs to the session closing candle.
+        final int bucketMs;
+        if (candleMinutes >= 940) {
+          bucketMs = (rawTimestamp ~/ (5 * 60 * 1000)) * (5 * 60 * 1000) - ((candleMinutes ~/ 5 - 187) * 5 * 60 * 1000);
+        } else {
+          bucketMs = (rawTimestamp ~/ (5 * 60 * 1000)) * (5 * 60 * 1000);
+        }
+        final timeStart = DateTime.fromMillisecondsSinceEpoch(bucketMs).toLocal();
+
+        final o = (opens[i] as num).toDouble();
+        final h = (highs[i] as num).toDouble();
+        final l = (lows[i] as num).toDouble();
+        final c = (closes[i] as num).toDouble();
+        final v = i < volumes.length ? (volumes[i] as num?)?.toInt() ?? 0 : 0;
+
+        final existing = bucketMap[bucketMs];
+        if (existing == null) {
+          bucketMap[bucketMs] = CandleModel(
+            symbol: originalSymbol,
+            timeStart: timeStart,
+            timeEnd: timeStart.add(const Duration(minutes: 5)),
+            open: o,
+            high: h,
+            low: l,
+            close: c,
+            volume: v,
+            candleKey: bucketMs.toString(),
+          );
+        } else {
+          bucketMap[bucketMs] = existing.copyWith(
+            high: math.max(existing.high, h),
+            low: math.min(existing.low, l),
+            close: c,
+            volume: existing.volume + v,
+          );
+        }
       }
 
+      final List<CandleModel> candles = bucketMap.values.toList()
+        ..sort((a, b) => a.timeStart.compareTo(b.timeStart));
+
+      // ── Apply official NSE EOD close to latest session ──
       if (candles.isNotEmpty && regularMarketPrice != null && regularMarketPrice > 0) {
         final lastCandle = candles.last;
-        final timeDiff = DateTime.now().difference(lastCandle.timeStart).inMinutes.abs();
-        if (timeDiff < 1440) {
+        final now = DateTime.now();
+        final istNow = now.toUtc().add(const Duration(hours: 5, minutes: 30));
+        final nowMinute = istNow.hour * 60 + istNow.minute;
+        final isToday = lastCandle.timeStart.year == now.year &&
+            lastCandle.timeStart.month == now.month &&
+            lastCandle.timeStart.day == now.day;
+        
+        if (isToday && nowMinute < 940 && isTradingDay(istNow)) {
+          // Market is currently live (< 15:40 IST)
+          final nowBucketMs = (now.millisecondsSinceEpoch ~/ (5 * 60 * 1000)) * (5 * 60 * 1000);
+          if (nowBucketMs > lastCandle.timeStart.millisecondsSinceEpoch) {
+            final formingTime = DateTime.fromMillisecondsSinceEpoch(nowBucketMs).toLocal();
+            final formingIst = formingTime.toUtc().add(const Duration(hours: 5, minutes: 30));
+            final formingMinutes = formingIst.hour * 60 + formingIst.minute;
+            // Only add forming candle if its start time is strictly <= 15:35 IST (closing at 15:40)
+            if (formingMinutes <= 935) {
+              candles.add(CandleModel(
+                symbol: originalSymbol,
+                timeStart: formingTime,
+                timeEnd: formingTime.add(const Duration(minutes: 5)),
+                open: lastCandle.close,
+                high: math.max(lastCandle.close, regularMarketPrice),
+                low: math.min(lastCandle.close, regularMarketPrice),
+                close: regularMarketPrice,
+                volume: 0,
+                candleKey: nowBucketMs.toString(),
+              ));
+            }
+          } else {
+            candles[candles.length - 1] = lastCandle.copyWith(
+              close: regularMarketPrice,
+              high: regularMarketPrice > lastCandle.high ? regularMarketPrice : lastCandle.high,
+              low: regularMarketPrice < lastCandle.low ? regularMarketPrice : lastCandle.low,
+            );
+          }
+        } else {
+          // Market is closed (after 15:40 IST, or on weekends/holidays):
+          // Update the final EOD candle of the latest session with the official NSE close!
           candles[candles.length - 1] = lastCandle.copyWith(
             close: regularMarketPrice,
             high: regularMarketPrice > lastCandle.high ? regularMarketPrice : lastCandle.high,
             low: regularMarketPrice < lastCandle.low ? regularMarketPrice : lastCandle.low,
           );
+        }
+      }
+
+      // ── Apply official NSE EOD close to previous completed trading day from meta ──
+      final double? chartPrevClose = (meta?['chartPreviousClose'] as num?)?.toDouble() ??
+          (meta?['previousClose'] as num?)?.toDouble();
+      if (chartPrevClose != null && chartPrevClose > 0 && candles.isNotEmpty) {
+        final lastDate = candles.last.timeStart;
+        final prevDayCandles = candles.where((c) =>
+          c.timeStart.isBefore(DateTime(lastDate.year, lastDate.month, lastDate.day))
+        ).toList();
+        if (prevDayCandles.isNotEmpty) {
+          final lastPrevCandle = prevDayCandles.last;
+          final idx = candles.indexOf(lastPrevCandle);
+          if (idx != -1) {
+            candles[idx] = lastPrevCandle.copyWith(
+              close: chartPrevClose,
+              high: chartPrevClose > lastPrevCandle.high ? chartPrevClose : lastPrevCandle.high,
+              low: chartPrevClose < lastPrevCandle.low ? chartPrevClose : lastPrevCandle.low,
+            );
+          }
         }
       }
 

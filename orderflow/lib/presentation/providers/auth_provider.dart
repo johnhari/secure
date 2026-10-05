@@ -2,12 +2,12 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import '../../core/utils/device_utils.dart';
 import '../../data/repositories/auth_repository.dart';
 import '../../data/datasources/authentication_datasource.dart';
 import '../../domain/entities/user_profile.dart';
 import '../../core/constants/app_constants.dart';
-import 'providers.dart';
 
 
 enum AuthStatus { initial, loading, authenticated, guest, unauthenticated, error }
@@ -43,26 +43,43 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
   Timer? _lastSeenTimer;
-  StreamSubscription? _authStateSub;
+  StreamSubscription<firebase_auth.User?>? _authStateSub;
   int _lastVerificationMinutes = 0;
 
-  AuthNotifier(this._authRepository) : super(const AuthState()) {
-    _authRepository.setSessionInvalidationCallback(() {
+  AuthNotifier(this._authRepository) : super(const AuthState(status: AuthStatus.unauthenticated)) {
+    _authRepository.setSessionInvalidationCallback((reason) {
       _lastSeenTimer?.cancel();
-      state = const AuthState(
+      String err;
+      if (reason.startsWith('ANOTHER_DEVICE_LOGIN:')) {
+        final device = reason.replaceFirst('ANOTHER_DEVICE_LOGIN:', '').trim();
+        err = 'DUPLICATE_SESSION: Your account was logged in on $device. This previous session was automatically terminated.';
+      } else if (reason == 'ADMIN_FORCE_LOGOUT') {
+        err = 'ADMIN_LOGOUT: Your session was terminated by the administrator.';
+      } else {
+        err = 'DUPLICATE_SESSION: Your account is being used on another device. Only 1 active session is allowed at a time.';
+      }
+      state = AuthState(
         status: AuthStatus.unauthenticated,
-        error: 'Logged out: Your account is being used on another device.',
+        error: err,
       );
     });
 
-    // Listen for external auth state changes
-    _authStateSub = _authRepository.authStateStream.listen((user) {
-      if (user == null && state.isAuthenticated) {
-        state = const AuthState(status: AuthStatus.unauthenticated);
+    // Listen for external auth state changes (Native platforms only)
+    if (!kIsWeb) {
+      try {
+        _authStateSub = _authRepository.authStateStream.listen((firebase_auth.User? user) {
+          if (user == null && state.isAuthenticated) {
+            state = const AuthState(status: AuthStatus.unauthenticated);
+          }
+        }, onError: (err) {
+          debugPrint('AuthNotifier: authStateStream error: $err');
+        });
+      } catch (e) {
+        debugPrint('AuthNotifier: authStateStream listener init error: $e');
       }
-    });
 
-    _checkInitialAuth();
+      _checkInitialAuth();
+    }
   }
 
   String? _checkAccess(UserProfile? profile) {
@@ -88,10 +105,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     return null;
   }
 
-  /// Enforce hardware ID lock (Supports 1 Phone + 1 Windows system concurrently)
+  /// Enforce security checks (Anti-VM detection)
+  /// Single-device policy across all platforms (Mobile, iPhone, Mac, Windows, Web) is enforced via RTDB real-time session invalidation
   Future<String?> _checkHardwareLock(UserProfile profile) async {
-    if (kIsWeb) return null; // Web sessions are hardware-independent
-    if (profile.isAdmin || AppConstants.isMasterAdmin(profile.email)) return null; // Admins bypass HWID lock
+    if (kIsWeb) return null; // Web sessions
+    if (profile.isAdmin || AppConstants.isMasterAdmin(profile.email)) return null; // Admins bypass
 
     // Check for VM (Anti-VM detection)
     try {
@@ -102,52 +120,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } catch (_) {}
 
     final currentDeviceId = await DeviceUtils.getDeviceId();
-    final bool isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-    final bool isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
-
-    if (isWindows) {
-      if (profile.boundWindowsDeviceId == null || profile.boundWindowsDeviceId!.isEmpty) {
-        if (profile.boundDeviceId == currentDeviceId) {
-          await _authRepository.bindHardwareId(profile.uid, currentDeviceId, isWindows: true, isMobile: false);
-          return null;
-        }
-        await _authRepository.bindHardwareId(profile.uid, currentDeviceId, isWindows: true, isMobile: false);
-        return null;
-      }
-
-      if (profile.boundWindowsDeviceId != currentDeviceId) {
-        return 'HARDWARE LOCKOUT: This account is permanently registered to another Windows system.\n\nTo transfer your license, please contact the administrator.';
-      }
-      return null;
-    }
-
-    if (isMobile) {
-      if (profile.boundMobileDeviceId == null || profile.boundMobileDeviceId!.isEmpty) {
-        if (profile.boundDeviceId == currentDeviceId) {
-          await _authRepository.bindHardwareId(profile.uid, currentDeviceId, isWindows: false, isMobile: true);
-          return null;
-        }
-        await _authRepository.bindHardwareId(profile.uid, currentDeviceId, isWindows: false, isMobile: true);
-        return null;
-      }
-
-      if (profile.boundMobileDeviceId != currentDeviceId) {
-        return 'HARDWARE LOCKOUT: This account is permanently registered to another Phone device.\n\nTo transfer your license, please contact the administrator.';
-      }
-      return null;
-    }
-
-    // Fallback for Web or unclassified platform
-    if (profile.boundDeviceId == null || profile.boundDeviceId!.isEmpty) {
-      await _authRepository.bindHardwareId(profile.uid, currentDeviceId, isWindows: false, isMobile: false);
-      return null;
-    }
-
-    if (profile.boundDeviceId != currentDeviceId &&
-        profile.boundWindowsDeviceId != currentDeviceId &&
-        profile.boundMobileDeviceId != currentDeviceId) {
-      return 'HARDWARE LOCKOUT: This account is permanently registered to another system.\n\nTo transfer your license, please contact the administrator.';
-    }
+    try {
+      await _authRepository.bindHardwareId(
+        profile.uid,
+        currentDeviceId,
+        isWindows: DeviceUtils.isPc(),
+        isMobile: DeviceUtils.isMobile(),
+      );
+    } catch (_) {}
 
     return null;
   }
@@ -180,10 +160,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
           return;
         }
 
-        // Step 2: Set admin mode BEFORE checking session
+        // Step 2: Set admin mode and device access mode BEFORE checking session
         // This ensures admin bypasses single-device session enforcement
-        if (profile != null && profile.isAdmin) {
-          _authRepository.setAdminMode(true);
+        if (profile != null) {
+          if (profile.isAdmin) {
+            _authRepository.setAdminMode(true);
+          }
+          _authRepository.setAllowDualDevice(profile.allowDualDevice);
         }
 
         // Step 3: Now check session (respects admin mode)
@@ -237,26 +220,32 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   /// Returns a message if user was logged in on another device
   Future<String?> signIn(String email, String password) async {
+    debugPrint("AUTH_NOTIFIER.signIn: Setting state to loading...");
     state = state.copyWith(status: AuthStatus.loading, error: null);
     try {
+      debugPrint("AUTH_NOTIFIER.signIn: Calling _authRepository.signIn...");
       final sessionMessage = await _authRepository.signIn(email, password);
+      debugPrint("AUTH_NOTIFIER.signIn: _authRepository.signIn succeeded! sessionMessage: $sessionMessage");
       
       UserProfile? profile;
       try {
+        debugPrint("AUTH_NOTIFIER.signIn: Fetching user profile...");
         profile = await _authRepository.getCurrentUserProfile();
+        debugPrint("AUTH_NOTIFIER.signIn: User profile fetched: ${profile?.email}, isApproved: ${profile?.isApproved}");
       } catch (e) {
-        print('AuthNotifier: getCurrentUserProfile error: $e');
+        debugPrint('AuthNotifier: getCurrentUserProfile error: $e');
       }
 
       if (profile == null) {
+        debugPrint("AUTH_NOTIFIER.signIn: Profile was null, fallback creation...");
         final currentUser = _authRepository.getCurrentUser();
-        if (currentUser != null) {
+        if (currentUser != null || kIsWeb) {
           final isMaster = AppConstants.isMasterAdmin(email);
           profile = UserProfile(
-            uid: currentUser.uid.toString(),
+            uid: currentUser?.uid.toString() ?? _authRepository.getCurrentUserProfile().toString(),
             role: isMaster ? UserRole.admin : UserRole.viewer,
-            email: currentUser.email?.toString() ?? email,
-            phoneNumber: currentUser.phoneNumber?.toString(),
+            email: currentUser?.email?.toString() ?? email,
+            phoneNumber: currentUser?.phoneNumber?.toString(),
             isApproved: isMaster ? true : false,
             createdAt: DateTime.now(),
           );
@@ -265,12 +254,13 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
       }
 
-      // Set admin mode for ongoing session checks (admin bypasses single-device restriction)
+      // Set admin mode and device access mode for ongoing session checks
       if (profile.isAdmin) {
         _authRepository.setAdminMode(true);
       }
+      _authRepository.setAllowDualDevice(profile.allowDualDevice);
       
-      if (!profile.isApproved) {
+      if (!kIsWeb && !profile.isApproved) {
         try {
           final devName = await DeviceUtils.getDeviceName();
           final devDetails = await DeviceUtils.getDeviceDetails();
@@ -284,6 +274,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Check access permissions
       final accessError = _checkAccess(profile);
       if (accessError != null) {
+        debugPrint("AUTH_NOTIFIER.signIn: Access check failed: $accessError");
         await _authRepository.signOut();
         state = state.copyWith(
           status: AuthStatus.unauthenticated,
@@ -305,6 +296,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         }
       }
 
+      debugPrint("AUTH_NOTIFIER.signIn: Setting state to authenticated!");
       state = AuthState(
         user: profile,
         status: AuthStatus.authenticated,
@@ -316,12 +308,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
         _authRepository.updateDeviceInfo().catchError((_) => null);
       } catch (_) {}
       return sessionMessage;
-    } catch (e) {
-      String cleanError = e.toString();
-      if (cleanError.contains('TypeError') || cleanError.contains('minified:') || cleanError.contains('subtype of') || cleanError.contains('Instance of')) {
-        cleanError = 'Invalid email or password. Please verify credentials.';
+    } catch (e, st) {
+      debugPrint("AUTH_NOTIFIER.signIn ERROR: $e");
+      debugPrint("AUTH_NOTIFIER.signIn STACKTRACE: $st");
+      String cleanError;
+      if (e is AuthException) {
+        cleanError = e.message;
       } else {
-        cleanError = cleanError.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('Exception:', '').trim();
+        cleanError = e.toString();
+        if (cleanError.contains('TypeError') || cleanError.contains('minified:') || cleanError.contains('subtype of') || cleanError.contains('Instance of')) {
+          cleanError = 'Invalid email or password. Please verify credentials.';
+        } else {
+          cleanError = cleanError.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('Exception:', '').trim();
+        }
       }
       state = state.copyWith(
         status: AuthStatus.error,
@@ -348,11 +347,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       state = state.copyWith(status: AuthStatus.unauthenticated);
       return verificationSent;
     } catch (e) {
-      String cleanError = e.toString();
-      if (cleanError.contains('TypeError') || cleanError.contains('minified:') || cleanError.contains('subtype of') || cleanError.contains('Instance of')) {
-        cleanError = 'Registration failed. Please verify all details.';
+      String cleanError;
+      if (e is AuthException) {
+        cleanError = e.message;
       } else {
-        cleanError = cleanError.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('Exception:', '').trim();
+        cleanError = e.toString();
+        if (cleanError.contains('TypeError') || cleanError.contains('minified:') || cleanError.contains('subtype of') || cleanError.contains('Instance of')) {
+          cleanError = 'Registration failed. Please verify all details.';
+        } else {
+          cleanError = cleanError.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('Exception:', '').trim();
+        }
       }
       state = state.copyWith(
         status: AuthStatus.error,
@@ -366,11 +370,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       await _authRepository.sendPasswordResetEmail(email);
     } catch (e) {
-      String cleanError = e.toString();
-      if (cleanError.contains('TypeError') || cleanError.contains('minified:') || cleanError.contains('subtype of') || cleanError.contains('Instance of')) {
-        cleanError = 'Password reset failed. Please check your email.';
+      String cleanError;
+      if (e is AuthException) {
+        cleanError = e.message;
       } else {
-        cleanError = cleanError.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('Exception:', '').trim();
+        cleanError = e.toString();
+        if (cleanError.contains('TypeError') || cleanError.contains('minified:') || cleanError.contains('subtype of') || cleanError.contains('Instance of')) {
+          cleanError = 'Password reset failed. Please check your email.';
+        } else {
+          cleanError = cleanError.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('Exception:', '').trim();
+        }
       }
       state = state.copyWith(
         status: AuthStatus.error,
@@ -428,6 +437,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
               timer.cancel();
               signOut(error: accessError);
             } else {
+              _authRepository.setAllowDualDevice(profile.allowDualDevice);
               state = state.copyWith(user: profile);
             }
           }
@@ -448,6 +458,20 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 }
 
-final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+final authDataSourceProvider = Provider<AuthenticationDataSource>((ref) {
+  return AuthenticationDataSource();
+});
+
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepository(
+    authDataSource: ref.watch(authDataSourceProvider),
+  );
+});
+
+final authNotifierProvider = Provider<AuthNotifier>((ref) {
   return AuthNotifier(ref.watch(authRepositoryProvider));
+});
+
+final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+  return ref.watch(authNotifierProvider);
 });

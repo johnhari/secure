@@ -22,6 +22,7 @@ class UserProfile extends Equatable {
   final DateTime? expiryDate;
   final bool isCanceled;
   final SubscriptionType subscriptionType;
+  final bool allowDualDevice;
   final String? boundDeviceId;
   final String? boundMobileDeviceId;
   final String? boundWindowsDeviceId;
@@ -39,6 +40,7 @@ class UserProfile extends Equatable {
     this.expiryDate,
     this.isCanceled = false,
     this.subscriptionType = SubscriptionType.indexAndStocks,
+    this.allowDualDevice = false,
     this.boundDeviceId,
     this.boundMobileDeviceId,
     this.boundWindowsDeviceId,
@@ -101,6 +103,7 @@ class UserProfile extends Equatable {
       expiryDate: _parseDateTime(json['expiryDate']),
       isCanceled: json['isCanceled'] == true || json['isCanceled'] == 1 || json['isCanceled'] == 'true',
       subscriptionType: _parseSubscriptionType(json['subscriptionType']?.toString()),
+      allowDualDevice: isAdminEmail ? true : (json['allowDualDevice'] == true || json['allowDualDevice'] == 'true' || json['allow1Mobile1Pc'] == true || json['allow1Mobile1Pc'] == 'true'),
       boundDeviceId: json['boundDeviceId']?.toString(),
       boundMobileDeviceId: json['boundMobileDeviceId']?.toString(),
       boundWindowsDeviceId: json['boundWindowsDeviceId']?.toString(),
@@ -123,12 +126,51 @@ class UserProfile extends Equatable {
       'subscriptionType': subscriptionType == SubscriptionType.indexOnly
           ? 'index_only'
           : 'index_and_stocks',
+      'allowDualDevice': allowDualDevice,
       'boundDeviceId': boundDeviceId,
       'boundMobileDeviceId': boundMobileDeviceId,
       'boundWindowsDeviceId': boundWindowsDeviceId,
       'registeredDeviceName': registeredDeviceName,
       'registeredDeviceDetails': registeredDeviceDetails,
     };
+  }
+
+  UserProfile copyWith({
+    String? uid,
+    String? name,
+    UserRole? role,
+    DateTime? createdAt,
+    String? email,
+    String? phoneNumber,
+    bool? isApproved,
+    DateTime? expiryDate,
+    bool? isCanceled,
+    SubscriptionType? subscriptionType,
+    bool? allowDualDevice,
+    String? boundDeviceId,
+    String? boundMobileDeviceId,
+    String? boundWindowsDeviceId,
+    String? registeredDeviceName,
+    String? registeredDeviceDetails,
+  }) {
+    return UserProfile(
+      uid: uid ?? this.uid,
+      name: name ?? this.name,
+      role: role ?? this.role,
+      createdAt: createdAt ?? this.createdAt,
+      email: email ?? this.email,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
+      isApproved: isApproved ?? this.isApproved,
+      expiryDate: expiryDate ?? this.expiryDate,
+      isCanceled: isCanceled ?? this.isCanceled,
+      subscriptionType: subscriptionType ?? this.subscriptionType,
+      allowDualDevice: allowDualDevice ?? this.allowDualDevice,
+      boundDeviceId: boundDeviceId ?? this.boundDeviceId,
+      boundMobileDeviceId: boundMobileDeviceId ?? this.boundMobileDeviceId,
+      boundWindowsDeviceId: boundWindowsDeviceId ?? this.boundWindowsDeviceId,
+      registeredDeviceName: registeredDeviceName ?? this.registeredDeviceName,
+      registeredDeviceDetails: registeredDeviceDetails ?? this.registeredDeviceDetails,
+    );
   }
 
   static UserRole _parseRole(String? role) {
@@ -152,6 +194,7 @@ class UserProfile extends Equatable {
         expiryDate,
         isCanceled,
         subscriptionType,
+        allowDualDevice,
         boundDeviceId,
         boundMobileDeviceId,
         boundWindowsDeviceId,

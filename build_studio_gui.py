@@ -299,11 +299,11 @@ class BuildStudioGUI:
         self.create_build_action_card(
             cards_container,
             icon="🪟",
-            title="Windows Desktop (.EXE)",
-            badge="NATIVE LOCAL BUILD",
+            title="Windows All-in-One (.EXE)",
+            badge="PORTABLE + INSTALLER",
             badge_color=self.colors["amber"],
-            desc="Builds Windows 64-bit desktop executable release bundle.",
-            btn_text="⚡ Build Windows (.EXE)",
+            desc="Compiles Flutter release & packages into standalone single-file EXE & installer.",
+            btn_text="⚡ Build Windows All-in-One (.EXE)",
             btn_color="#d97706",
             command=self.start_windows_build
         )
@@ -682,10 +682,11 @@ class BuildStudioGUI:
             messagebox.showwarning("Busy", "A build process is already currently running.")
             return
 
+        ps_script = os.path.join(ROOT_DIR, "build_single_file.ps1")
         threading.Thread(target=self._run_command_in_console, args=(
-            ["flutter", "build", "windows", "--release"],
-            "Windows Desktop (.exe)",
-            lambda: self._open_dir(os.path.join(PROJECT_DIR, "build", "windows", "x64", "runner", "Release"))
+            ["powershell", "-ExecutionPolicy", "Bypass", "-File", ps_script],
+            "Windows All-in-One EXE & Installer",
+            lambda: self._open_dir(os.path.join(BUILDS_DIR, "windows"))
         ), daemon=True).start()
 
     def run_analyze(self):

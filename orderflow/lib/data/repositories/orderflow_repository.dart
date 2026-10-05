@@ -46,7 +46,7 @@ class OrderflowRepository {
     bool isMediumSignal = false,
     bool isTrap = false,
     bool isLiquidation = false,
-    double bubbleScale = 5.0,
+    double bubbleScale = 3.0,
     double bubbleOpacity = 0.65,
     double bubbleGlow = 0.0,
     bool showLabel = true,
@@ -58,6 +58,7 @@ class OrderflowRepository {
     bool adminOnly = false,
   }) async {
     final firestore = _remoteDataSource.firestore;
+    if (firestore == null) return;
     final batch = firestore.batch();
     final now = DateTime.now();
     
@@ -153,6 +154,7 @@ class OrderflowRepository {
     required String symbol,
   }) async {
     final firestore = _remoteDataSource.firestore;
+    if (firestore == null) return;
     final docId = '${symbol}_$candleKey';
     await firestore.collection('orderflow').doc(docId).delete();
     
@@ -169,6 +171,7 @@ class OrderflowRepository {
     required String symbol,
   }) async {
     final firestore = _remoteDataSource.firestore;
+    if (firestore == null) return;
     final query = await firestore
         .collection('orderflow')
         .where('symbol', isEqualTo: symbol)
@@ -217,7 +220,7 @@ class OrderflowRepository {
     bool isMediumSignal = false,
     bool isTrap = false,
     bool isLiquidation = false,
-    double bubbleScale = 5.0,
+    double bubbleScale = 3.0,
     double bubbleOpacity = 0.65,
     double bubbleGlow = 0.0,
     bool showLabel = true,

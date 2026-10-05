@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:ui';
 import '../providers/auth_provider.dart';
+import '../../data/datasources/authentication_datasource.dart';
 import '../../core/theme/app_theme.dart';
-import 'chart_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -45,6 +46,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     ).animate(CurvedAnimation(parent: _animController, curve: Curves.easeOut));
 
     _animController.forward();
+    _loadSavedCredentials();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final currentError = ref.read(authProvider).error;
+      if (currentError != null) {
+        if (currentError == 'PENDING_APPROVAL') {
+          _showPendingApprovalDialog();
+        } else if (currentError.contains('another device') || currentError.startsWith('DUPLICATE_SESSION')) {
+          _showSessionTerminatedDialog(currentError);
+        }
+      }
+    });
+  }
+
+  /// Load saved credentials from SharedPreferences
+  Future<void> _loadSavedCredentials() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedEmail = prefs.getString('saved_email') ?? '';
+      final savedPassword = prefs.getString('saved_password') ?? '';
+      if (savedEmail.isNotEmpty && mounted) {
+        setState(() {
+          _emailController.text = savedEmail;
+          if (savedPassword.isNotEmpty) {
+            _passwordController.text = savedPassword;
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint('Warning: Could not load saved credentials: $e');
+    }
+  }
+
+  /// Save credentials to SharedPreferences after successful login
+  Future<void> _saveCredentials(String email, String password) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('saved_email', email);
+      await prefs.setString('saved_password', password);
+      debugPrint('Credentials saved for $email');
+    } catch (e) {
+      debugPrint('Warning: Could not save credentials: $e');
+    }
   }
 
   @override
@@ -57,9 +102,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     super.dispose();
   }
 
-  void _switchMode(AuthMode mode) {
+  void _switchMode(AuthMode mode, {bool clearSnackBar = true}) {
     HapticFeedback.lightImpact();
-    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    if (clearSnackBar) {
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    }
     setState(() {
       _authMode = mode;
       _formKey.currentState?.reset();
@@ -80,19 +127,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       switch (_authMode) {
         case AuthMode.login:
           try {
-            final sessionMessage = await ref.read(authProvider.notifier).signIn(email, password);
+            debugPrint("LOGIN SUBMIT: Reading authNotifierProvider...");
+            final authNotifier = ref.read(authNotifierProvider);
+            debugPrint("LOGIN SUBMIT: Calling authNotifier.signIn...");
+            final sessionMessage = await authNotifier.signIn(email, password);
+            debugPrint("LOGIN SUBMIT: signIn returned: $sessionMessage");
             if (mounted) {
               if (sessionMessage != null && sessionMessage != 'PENDING_APPROVAL') {
-                _showSnackBar(sessionMessage, isSuccess: true);
+                if (sessionMessage.startsWith('DUPLICATE_SESSION_OVERWRITE:') || sessionMessage.contains('logged in on')) {
+                  final prevDev = sessionMessage.contains(':')
+                      ? sessionMessage.split(':').last.trim()
+                      : 'another device';
+                  await _showSessionTakeoverNoticeDialog(prevDev);
+                } else {
+                  _showSnackBar(sessionMessage, isSuccess: true);
+                }
               }
               if (ref.read(authProvider).isAuthenticated) {
+                debugPrint("LOGIN SUBMIT: Authenticated! Saving credentials and navigating...");
+                // Save credentials on successful login
+                _saveCredentials(email, password);
                 _navigateToChart();
               }
             }
-          } catch (e) {
+          } catch (e, st) {
             debugPrint("LOGIN SUBMIT ERROR: $e");
+            debugPrint("LOGIN SUBMIT STACKTRACE: $st");
             if (mounted) {
-              final clean = e.toString().replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('minified:', '').trim();
+              final clean = _sanitizeError(e, mode: AuthMode.login);
               _showSnackBar(clean.isNotEmpty ? clean : 'Invalid credentials. Please try again.');
             }
           }
@@ -102,59 +164,266 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           final name = _nameController.text.trim();
           final phone = _phoneController.text.trim();
           try {
-            final verificationSent = await ref.read(authProvider.notifier).register(
+            final authNotifier = ref.read(authNotifierProvider);
+            final verificationSent = await authNotifier.register(
               email: email,
               password: password,
               name: name,
               phoneNumber: phone,
             );
-            if (verificationSent) {
+            if (verificationSent && mounted) {
+              _switchMode(AuthMode.login, clearSnackBar: false);
+              _showVerificationSentDialog(email);
               _showSnackBar('Verification email sent to $email! Please verify to login.', isSuccess: true);
-              _switchMode(AuthMode.login);
             }
           } catch (e) {
             debugPrint("REGISTER SUBMIT ERROR: $e");
             if (mounted) {
-              final clean = _sanitizeError(e.toString());
-              _showSnackBar(clean.isNotEmpty ? clean : 'Registration failed. Please try again.');
+              final errStr = e.toString().toLowerCase();
+              // Only show "already sent" dialog for the specific email-already-in-use error
+              if (errStr.contains('already-in-use') || errStr.contains('email-already') || errStr.contains('email_exists')) {
+                _showVerificationAlreadySentDialog(email);
+                _showSnackBar('Verification link already sent to your mail ID ($email)! Check inbox & spam.');
+              } else {
+                final clean = _sanitizeError(e, mode: AuthMode.register);
+                _showSnackBar(clean.isNotEmpty ? clean : 'Registration failed. Please try again.');
+              }
             }
           }
           break;
 
         case AuthMode.forgotPassword:
           try {
-            await ref.read(authProvider.notifier).sendPasswordResetEmail(email);
-            _showSnackBar('Password reset email sent to $email! Check inbox & spam.', isSuccess: true);
-            _switchMode(AuthMode.login);
+            final authNotifier = ref.read(authNotifierProvider);
+            await authNotifier.sendPasswordResetEmail(email);
+            if (mounted) {
+              _switchMode(AuthMode.login, clearSnackBar: false);
+              _showSnackBar('Password reset email sent to $email! Check inbox & spam.', isSuccess: true);
+            }
           } catch (e) {
-            _showSnackBar(_sanitizeError(e.toString()));
+            if (mounted) {
+              _showSnackBar(_sanitizeError(e, mode: AuthMode.forgotPassword));
+            }
           }
           break;
       }
     } catch (e) {
-      _showSnackBar(_sanitizeError(e.toString()));
+      if (mounted) {
+        _showSnackBar(_sanitizeError(e, mode: _authMode));
+      }
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  String _sanitizeError(String error) {
-    if (error.contains('TypeError') ||
-        error.contains('minified:') ||
-        error.contains('subtype of') ||
-        error.contains('Instance of') ||
-        error.contains('M9') ||
-        error.contains('M8') ||
-        error.contains('M7') ||
-        error.contains('M6')) {
+  String _sanitizeError(dynamic error, {AuthMode mode = AuthMode.login}) {
+    String errorStr;
+    if (error is AuthException) {
+      errorStr = error.message;
+    } else {
+      errorStr = error?.toString() ?? '';
+    }
+
+    final lower = errorStr.toLowerCase();
+    if (lower.contains('another device') || lower.contains('duplicate_session')) {
+      return errorStr.replaceFirst('DUPLICATE_SESSION:', '').trim();
+    }
+    if (lower.contains('already-in-use') || lower.contains('already in use') || lower.contains('already registered') || lower.contains('email_exists') || lower.contains('already link') || lower.contains('link already sent')) {
+      return 'Verification link already sent to your mail ID. Please check your inbox & spam folder to verify.';
+    }
+    if (lower.contains('invalid-email') || lower.contains('invalid_email')) {
+      return 'Please enter a valid email address.';
+    }
+    if (lower.contains('weak-password') || lower.contains('weak password') || lower.contains('password must be') || lower.contains('weak_password')) {
+      return 'Password is too weak. Please use at least 6 characters.';
+    }
+    if (lower.contains('user-not-found') || lower.contains('no account found') || lower.contains('no user record')) {
+      return 'No account found with this email.';
+    }
+    if (lower.contains('wrong-password') || lower.contains('incorrect password') || lower.contains('invalid password')) {
+      return 'Incorrect password. Please try again.';
+    }
+    if (lower.contains('invalid-credential') || lower.contains('invalid credential') || lower.contains('invalid login')) {
       return 'Invalid email or password. Please verify credentials.';
     }
-    return error.replaceAll(RegExp(r'\[.*?\]'), '').replaceAll('minified:', '').replaceAll('Exception:', '').trim();
+
+    final cleaned = errorStr
+        .replaceAll(RegExp(r'\[.*?\]'), '')
+        .replaceAll('Exception:', '')
+        .replaceAll("Instance of 'AuthException'", '')
+        .replaceAll("Instance of 'NetworkException'", '')
+        .replaceAll("Instance of", '')
+        .replaceAll('TypeError:', '')
+        .trim();
+
+    if (cleaned.isNotEmpty &&
+        !cleaned.contains('TypeError') &&
+        !cleaned.contains('minified:') &&
+        !cleaned.contains('subtype of') &&
+        !cleaned.contains('Null check operator')) {
+      return cleaned;
+    }
+
+    if (mode == AuthMode.register) {
+      return 'Registration failed. Please check your details and try again.';
+    } else if (mode == AuthMode.forgotPassword) {
+      return 'Password reset failed. Please check your email.';
+    }
+    return 'Invalid email or password. Please verify credentials.';
   }
 
   void _navigateToChart() {
     if (!mounted) return;
     Navigator.of(context).pushNamedAndRemoveUntil('/chart', (route) => false);
+  }
+
+  void _showVerificationAlreadySentDialog(String email) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: AppTheme.primaryCyan.withValues(alpha: 0.3), width: 1),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.mark_email_read_rounded, color: AppTheme.primaryCyan, size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Verification Link Sent',
+                style: TextStyle(
+                  color: AppTheme.primaryCyan,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'A verification link has already been sent to your mail ID:',
+              style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.3)),
+              ),
+              child: SelectableText(
+                email,
+                style: const TextStyle(color: AppTheme.primaryCyan, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Please check your inbox (and spam folder), then click the link inside to verify your account before logging in.',
+              style: TextStyle(color: Colors.white60, fontSize: 13, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _switchMode(AuthMode.login);
+            },
+            child: const Text(
+              'GO TO LOGIN',
+              style: TextStyle(
+                color: AppTheme.primaryCyan,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showVerificationSentDialog(String email) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(color: AppTheme.primaryCyan.withValues(alpha: 0.3), width: 1),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.mark_email_read_rounded, color: AppTheme.primaryCyan, size: 28),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Verification Sent',
+                style: TextStyle(
+                  color: AppTheme.primaryCyan,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your account has been created! A verification email has been sent to:',
+              style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.3)),
+              ),
+              child: SelectableText(
+                email,
+                style: const TextStyle(color: AppTheme.primaryCyan, fontWeight: FontWeight.bold, fontSize: 14),
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Please check your inbox (and spam folder), then click the link inside to verify your email before logging in.',
+              style: TextStyle(color: Colors.white60, fontSize: 13, height: 1.4),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'UNDERSTOOD',
+              style: TextStyle(
+                color: AppTheme.primaryCyan,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.0,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showPendingApprovalDialog() {
@@ -203,9 +472,206 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
     );
   }
 
+  /// Warning dialog shown on the OLD device when an active session is terminated due to login on another device
+  void _showSessionTerminatedDialog(String errorMsg) {
+    if (!mounted) return;
+    final displayMsg = errorMsg.replaceAll('DUPLICATE_SESSION:', '').trim();
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF131722),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFFF5252), width: 1.5),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF5252).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.devices_other_rounded, color: Color(0xFFFF5252), size: 26),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Session Terminated',
+                style: TextStyle(
+                  color: Color(0xFFFF5252),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFF5252).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFF5252).withValues(alpha: 0.25)),
+              ),
+              child: const Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(Icons.warning_amber_rounded, color: Color(0xFFFF5252), size: 20),
+                  SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Simultaneous multi-device access is restricted.',
+                      style: TextStyle(
+                        color: Color(0xFFFF5252),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              displayMsg.isNotEmpty
+                  ? displayMsg
+                  : 'Your account was just logged in from another device or browser session.',
+              style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.5, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              '🛡️ Device Security Policy:\nTo ensure algorithmic data protection and strict license compliance, only authorized sessions (up to 1 PC and 1 Mobile) are permitted. This previous session has been closed.',
+              style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'If you did not perform this login, please change your password immediately.',
+              style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.3),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00E5FF),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'ACKNOWLEDGE & RE-LOGIN',
+              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Warning dialog shown on the NEW device when user logs in and replaces an active session on another device
+  Future<void> _showSessionTakeoverNoticeDialog(String prevDevice) async {
+    if (!mounted) return;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF131722),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: const BorderSide(color: Color(0xFFFFB300), width: 1.5),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB300).withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.shield_rounded, color: Color(0xFFFFB300), size: 26),
+            ),
+            const SizedBox(width: 12),
+            const Expanded(
+              child: Text(
+                'Previous Session Logged Out',
+                style: TextStyle(
+                  color: Color(0xFFFFB300),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 18,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFB300).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFFB300).withValues(alpha: 0.25)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.info_outline, color: Color(0xFFFFB300), size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Session on $prevDevice terminated.',
+                      style: const TextStyle(
+                        color: Color(0xFFFFB300),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Your account has successfully authorized this device. In compliance with our Device Security Policy, the active session on $prevDevice was terminated.',
+              style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5),
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00E5FF),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text(
+              'PROCEED TO TERMINAL',
+              style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.8),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showSnackBar(String message, {bool isSuccess = false}) {
     if (!mounted) return;
-    final clean = _sanitizeError(message);
+    final clean = _sanitizeError(message, mode: _authMode);
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -235,18 +701,25 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
         break;
     }
 
-    return Container(
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
       width: double.infinity,
       height: 56,
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppTheme.primaryCyan, AppTheme.accentPurple],
+        gradient: LinearGradient(
+          colors: _isLoading
+              ? [AppTheme.primaryCyan.withValues(alpha: 0.7), AppTheme.accentPurple.withValues(alpha: 0.7)]
+              : [AppTheme.primaryCyan, AppTheme.accentPurple],
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryCyan.withValues(alpha: 0.3),
-            blurRadius: 15,
+            color: _isLoading
+                ? AppTheme.primaryCyan.withValues(alpha: 0.5)
+                : AppTheme.primaryCyan.withValues(alpha: 0.3),
+            blurRadius: _isLoading ? 25 : 15,
+            spreadRadius: _isLoading ? 2 : 0,
             offset: const Offset(0, 5),
           ),
         ],
@@ -257,29 +730,63 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
           borderRadius: BorderRadius.circular(16),
           onTap: _isLoading ? null : _submit,
           child: Center(
-            child: _isLoading
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 400),
+              switchInCurve: Curves.easeOut,
+              switchOutCurve: Curves.easeIn,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: ScaleTransition(scale: animation, child: child),
+                );
+              },
+              child: _isLoading
+                  ? Row(
+                      key: const ValueKey('loading'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white.withValues(alpha: 0.9),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          _authMode == AuthMode.register
+                              ? 'CREATING ACCOUNT...'
+                              : (_authMode == AuthMode.login ? 'AUTHORIZING...' : 'SENDING...'),
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            letterSpacing: 1.5,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Text(
+                      buttonText,
+                      key: ValueKey('text_$buttonText'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        letterSpacing: 1.2,
+                      ),
                     ),
-                  )
-                : Text(
-                    buttonText,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
+            ),
           ),
         ),
       ),
     );
-  }@override
+  }
+@override
   Widget build(BuildContext context) {
     // Responsive Scaling Logic
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -291,6 +798,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       } else if (next.error != null && next.status == AuthStatus.unauthenticated) {
         if (next.error == 'PENDING_APPROVAL') {
           _showPendingApprovalDialog();
+        } else if (next.error!.contains('another device') || next.error!.startsWith('DUPLICATE_SESSION')) {
+          _showSessionTerminatedDialog(next.error!);
         } else {
           _showSnackBar(next.error!);
         }
@@ -379,7 +888,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   SizedBox(height: 16 * scaleFactor),
                   _buildPasswordField(),
                 ],
-                SizedBox(height: 24 * scaleFactor),
+                if (_authMode == AuthMode.login) ...[
+                  SizedBox(height: 14 * scaleFactor),
+                  _buildSingleDevicePolicyNotice(scaleFactor),
+                ],
+                SizedBox(height: 20 * scaleFactor),
                 _buildSubmitButton(),
                 SizedBox(height: 20 * scaleFactor),
                 _buildModeToggle(),
@@ -390,6 +903,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
               ],
             ),
           ),
+    );
+  }
+
+  Widget _buildSingleDevicePolicyNotice(double scaleFactor) {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 12 * scaleFactor, vertical: 8 * scaleFactor),
+      decoration: BoxDecoration(
+        color: const Color(0xFF00E5FF).withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(10 * scaleFactor),
+        border: Border.all(color: const Color(0xFF00E5FF).withValues(alpha: 0.2), width: 1),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.shield_outlined,
+            color: const Color(0xFF00E5FF),
+            size: 16 * scaleFactor,
+          ),
+          SizedBox(width: 8 * scaleFactor),
+          Expanded(
+            child: Text(
+              'Device Security Policy: Authorized for 1 PC + 1 Mobile access. Duplicate logins on the same device type will terminate previous sessions.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.75),
+                fontSize: 10.5 * scaleFactor,
+                height: 1.3,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

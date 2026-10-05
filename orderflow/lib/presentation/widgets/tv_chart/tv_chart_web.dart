@@ -141,8 +141,9 @@ function parse(data) {
     var t    = ts[i];
     var d    = new Date(t * 1000);
     // Filter 9:15–15:40 IST = 3:45–10:10 UTC (225–610 minutes from midnight UTC)
+    // Market session officially runs until 15:40 IST = 10:10 UTC (610 min from midnight UTC)
     var tot  = d.getUTCHours() * 60 + d.getUTCMinutes();
-    if (tot < 225 || tot >= 610) continue;
+    if (tot < 225 || tot > 610) continue;
     candles.push({ time: t, open: q.open[i], high: q.high[i], low: q.low[i], close: q.close[i] });
     vols.push({
       time:  t,

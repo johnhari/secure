@@ -31,9 +31,18 @@ class CandleAggregator {
      */
     getCandleKey(symbol, timestamp) {
         const time = moment(timestamp).tz(this.timezone);
-        const minute = Math.floor(time.minute() / this.candleInterval) * this.candleInterval;
+        const minuteOfDay = time.hour() * 60 + time.minute();
 
-        const alignedTime = time.clone().minute(minute).second(0).millisecond(0);
+        // In NSE, session & post-market closing process runs until 15:40 IST (3:40 PM).
+        // The final 5m candle is 15:35 to 15:40.
+        // Any settlement tick arriving at or after 15:40 folds into the 15:35 closing candle.
+        let alignedTime;
+        if (minuteOfDay >= 940) {
+            alignedTime = time.clone().hour(15).minute(35).second(0).millisecond(0);
+        } else {
+            const minute = Math.floor(time.minute() / this.candleInterval) * this.candleInterval;
+            alignedTime = time.clone().minute(minute).second(0).millisecond(0);
+        }
 
         const dateStr = alignedTime.format('YYYYMMDD');
         const timeStr = alignedTime.format('HHmm');
@@ -46,6 +55,10 @@ class CandleAggregator {
      */
     getCandleStartTime(timestamp) {
         const time = moment(timestamp).tz(this.timezone);
+        const minuteOfDay = time.hour() * 60 + time.minute();
+        if (minuteOfDay >= 940) {
+            return time.clone().hour(15).minute(35).second(0).millisecond(0);
+        }
         const minute = Math.floor(time.minute() / this.candleInterval) * this.candleInterval;
         return time.clone().minute(minute).second(0).millisecond(0);
     }

@@ -17,13 +17,83 @@ import 'presentation/widgets/futuristic_radar_loader.dart';
 import 'data/datasources/local_cache_datasource.dart';
 import 'package:flutter/foundation.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
+  // 1. Firebase core initialization before any providers mount
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    debugPrint("✅ Firebase Core Initialized in main()");
+  } catch (e) {
+    debugPrint("⚠️ Firebase Init in main(): $e");
+  }
+
+  // 2. Local Storage
+  try {
+    await Hive.initFlutter();
+    debugPrint("✅ Hive Initialized in main()");
+  } catch (e) {
+    debugPrint("⚠️ Hive Init in main(): $e");
+  }
+
   // Basic error logging
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint("❌ FlutterError: ${details.exception}");
+  };
+
+  // Graceful ErrorWidget for Web and Native (prevents solid grey screens)
+  ErrorWidget.builder = (FlutterErrorDetails details) {
+    debugPrint("❌ ErrorWidget caught: ${details.exception}\nStack: ${details.stack}");
+    return Material(
+      color: const Color(0xFF060B12),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.shield_outlined, color: Color(0xFF00E5FF), size: 48),
+              const SizedBox(height: 16),
+              const Text(
+                'ORDERFLOW TERMINAL READY',
+                style: TextStyle(
+                  color: Color(0xFF00E5FF),
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                  letterSpacing: 1.5,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                '${details.exception}\n\nSTACK TRACE:\n${details.stack.toString().split('\n').take(12).join('\n')}',
+                style: const TextStyle(color: Colors.white70, fontSize: 10, fontFamily: 'monospace'),
+                textAlign: TextAlign.left,
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (kIsWeb) {
+                    // ignore: avoid_web_libraries_in_flutter
+                    // window.location.reload();
+                  }
+                },
+                icon: const Icon(Icons.refresh_rounded, size: 14),
+                label: const Text('RETRY UPLINK', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF00E5FF),
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   };
 
   runApp(
@@ -76,7 +146,7 @@ class _InitializationWrapperState extends State<InitializationWrapper> {
     try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
-      ).timeout(const Duration(seconds: 12));
+      ).timeout(const Duration(seconds: 8));
       debugPrint("✅ Firebase Ready");
     } catch (e) {
       debugPrint("⚠️ Firebase Init Error: $e");
@@ -84,7 +154,7 @@ class _InitializationWrapperState extends State<InitializationWrapper> {
 
     // 2. Core Services
     try {
-      await Hive.initFlutter().timeout(const Duration(seconds: 5));
+      await Hive.initFlutter().timeout(const Duration(seconds: 4));
       debugPrint("✅ Hive Ready");
     } catch (e) {
       debugPrint("⚠️ Hive Init Error: $e");
@@ -94,16 +164,16 @@ class _InitializationWrapperState extends State<InitializationWrapper> {
       // Initialize core services with individual error handling to prevent startup hangs
       await Future.wait([
         NotificationService.initialize()
-            .timeout(const Duration(seconds: 10))
+            .timeout(const Duration(seconds: 5))
             .catchError((e) => debugPrint('❌ NotificationService Init Failed: $e')),
         AudioService.initialize()
-            .timeout(const Duration(seconds: 5))
+            .timeout(const Duration(seconds: 4))
             .catchError((e) => debugPrint('❌ AudioService Init Failed: $e')),
         PermissionService.requestAllPermissions()
-            .timeout(const Duration(seconds: 8))
+            .timeout(const Duration(seconds: 4))
             .catchError((e) => debugPrint('❌ PermissionService Init Failed: $e')),
         LocalCacheDataSource().initialize()
-            .timeout(const Duration(seconds: 5))
+            .timeout(const Duration(seconds: 4))
             .catchError((e) => debugPrint('❌ LocalCache Init Failed: $e')),
       ]);
 
@@ -111,7 +181,6 @@ class _InitializationWrapperState extends State<InitializationWrapper> {
         debugPrint('✅ Services Ready');
       }
     } catch (e) {
-      // Fallback for any catastrophic global failure
       debugPrint('⚠️ Critical Initialization Error (Bypassing): $e');
     }
 
@@ -119,16 +188,12 @@ class _InitializationWrapperState extends State<InitializationWrapper> {
     final bool isMobile = !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS);
     if (isMobile && !kDebugMode) {
       try {
-        // Disable screenshots/screen recording blocking by default
         await ScreenSecure.init(screenshotBlock: false, screenRecordBlock: false)
             .timeout(const Duration(seconds: 3));
-      } on MissingPluginException catch (e) {
-        debugPrint("⚠️ Security Plugin Error (Missing Implementation): $e");
       } catch (e) {
         debugPrint("⚠️ Security Plugin Error: $e");
       }
     }
-
 
     debugPrint("🏁 Initialization Complete");
   }
@@ -171,6 +236,7 @@ class _ErrorDisplay extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(32),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 64),
@@ -188,7 +254,6 @@ class _ErrorDisplay extends StatelessWidget {
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: () {
-                  // In a real app, we might use a reload trigger here
                   debugPrint("Retry clicked");
                 },
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.white10),

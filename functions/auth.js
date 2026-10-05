@@ -61,6 +61,136 @@ const generateOTP = () => {
 };
 
 /**
+ * Send branded HTML Email Verification with Action Button
+ */
+const sendBrandedVerificationEmail = async (email) => {
+    const config = functions.config();
+    const actionCodeSettings = {
+        url: 'https://orderflowterminal.web.app/terminal/index.html#/login?verified=true',
+        handleCodeInApp: true,
+    };
+
+    let verificationLink = '#';
+    try {
+        verificationLink = await admin.auth().generateEmailVerificationLink(email, actionCodeSettings);
+    } catch (err) {
+        console.error('[Email] generateEmailVerificationLink error:', err);
+    }
+
+    if (config.email && config.email.user && config.email.password) {
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: config.email.user,
+                pass: config.email.password
+            }
+        });
+
+        await transporter.sendMail({
+            from: `"BIG SHOT OrderFlow Terminal" <${config.email.user}>`,
+            to: email,
+            subject: '🔐 Verify Your Email Address — BIG SHOT OrderFlow Terminal',
+            html: `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Verify Email - BIG SHOT OrderFlow</title>
+                </head>
+                <body style="margin: 0; padding: 0; background-color: #080B10; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #FFFFFF;">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #080B10; padding: 40px 10px;">
+                        <tr>
+                            <td align="center">
+                                <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 560px; background: rgba(15, 23, 36, 0.95); border: 1px solid rgba(0, 255, 157, 0.3); border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); overflow: hidden;">
+                                    <!-- Header Banner -->
+                                    <tr>
+                                        <td align="center" style="padding: 32px 20px 20px; background: linear-gradient(180deg, rgba(0, 255, 157, 0.08) 0%, rgba(15, 23, 36, 0) 100%);">
+                                            <div style="width: 70px; height: 70px; background: #000000; border-radius: 50%; border: 2px solid #00ff9d; box-shadow: 0 0 20px rgba(0,255,157,0.3); display: inline-block; overflow: hidden; vertical-align: middle;">
+                                                <img src="https://orderflowterminal.web.app/assets/images/logo_bigshot.jpg" alt="BIG SHOT" width="70" height="70" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+                                            </div>
+                                            <h1 style="margin: 16px 0 4px; font-size: 22px; font-weight: 900; color: #00ff9d; letter-spacing: 1.5px; text-transform: uppercase;">
+                                                BIG SHOT ORDERFLOW
+                                            </h1>
+                                            <p style="margin: 0; font-size: 12px; color: #94A3B8; font-weight: 700; letter-spacing: 1px;">
+                                                INSTITUTIONAL GRADE TRADING TERMINAL
+                                            </p>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Main Body -->
+                                    <tr>
+                                        <td style="padding: 24px 32px 36px; text-align: center;">
+                                            <h2 style="margin: 0 0 12px; font-size: 20px; font-weight: 800; color: #FFFFFF;">
+                                                Verify Your Email Address
+                                            </h2>
+                                            <p style="margin: 0 0 28px; font-size: 14px; line-height: 1.6; color: #CBD5E1;">
+                                                Welcome to BIG SHOT OrderFlow Terminal! Please click the authorization button below to verify your email address and activate your account.
+                                            </p>
+
+                                            <!-- CTA Button -->
+                                            <div style="margin: 32px 0;">
+                                                <a href="${verificationLink}" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #00ff9d 0%, #00b359 100%); color: #000000; font-size: 15px; font-weight: 900; padding: 16px 36px; text-decoration: none; border-radius: 30px; letter-spacing: 0.8px; box-shadow: 0 0 25px rgba(0, 255, 157, 0.4); text-transform: uppercase;">
+                                                    VERIFY EMAIL &amp; AUTHORIZE ACCESS &rarr;
+                                                </a>
+                                            </div>
+
+                                            <!-- Direct Link Box -->
+                                            <div style="background: rgba(255, 255, 255, 0.03); border: 1px dashed rgba(255, 255, 255, 0.15); border-radius: 12px; padding: 14px; margin-top: 28px; text-align: left;">
+                                                <p style="margin: 0 0 6px; font-size: 11px; color: #94A3B8; font-weight: 700; text-transform: uppercase;">
+                                                    Direct Verification Link:
+                                                </p>
+                                                <p style="margin: 0; font-size: 11px; color: #00ff9d; word-break: break-all; font-family: monospace;">
+                                                    ${verificationLink}
+                                                </p>
+                                            </div>
+
+                                            <div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.08); text-align: center;">
+                                                <p style="margin: 0; font-size: 12px; color: #64748B; line-height: 1.5;">
+                                                    If you did not request this account registration, please ignore this email.
+                                                    <br>This link is valid for 24 hours.
+                                                </p>
+                                            </div>
+                                        </td>
+                                    </tr>
+
+                                    <!-- Footer -->
+                                    <tr>
+                                        <td align="center" style="padding: 16px 20px; background: rgba(0, 0, 0, 0.4); border-top: 1px solid rgba(255, 255, 255, 0.05);">
+                                            <p style="margin: 0; font-size: 11px; color: #475569;">
+                                                &copy; 2026 BIG SHOT OrderFlow Terminal. All rights reserved.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </body>
+                </html>
+            `
+        });
+        console.log(`[Email] Branded verification email sent to ${email}`);
+    }
+
+    return verificationLink;
+};
+
+exports.sendBrandedVerificationEmail = sendBrandedVerificationEmail;
+
+/**
+ * Send Verification Email Function (Callable)
+ */
+exports.sendVerificationEmail = async (data) => {
+    const { email } = data;
+    if (!email) {
+        throw new functions.https.HttpsError('invalid-argument', 'Email is required');
+    }
+    const link = await sendBrandedVerificationEmail(email.toLowerCase().trim());
+    return { success: true, link };
+};
+
+/**
  * Send OTP via email
  */
 const sendOtpEmail = async (email, otp) => {
@@ -75,21 +205,21 @@ const sendOtpEmail = async (email, otp) => {
     });
 
     await transporter.sendMail({
-        from: `"BIG SHOT OrderFlow" <${config.email.user}>`,
+        from: `"BIG SHOT OrderFlow Terminal" <${config.email.user}>`,
         to: email,
-        subject: 'Your OTP for BIG SHOT OrderFlow',
+        subject: '🔐 Your Verification OTP - BIG SHOT OrderFlow',
         html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px; text-align: center;">
-                    <h1 style="color: white; margin: 0;">BIG SHOT OrderFlow</h1>
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #080B10; color: #fff; border-radius: 16px; overflow: hidden; border: 1px solid rgba(0,255,157,0.3);">
+                <div style="background: linear-gradient(135deg, #00ff9d 0%, #00b359 100%); padding: 24px; text-align: center;">
+                    <h1 style="color: #000; margin: 0; font-size: 24px; font-weight: 900; letter-spacing: 1px;">BIG SHOT ORDERFLOW</h1>
                 </div>
-                <div style="padding: 30px; background-color: #f9fafb;">
-                    <h2>Your One-Time Password</h2>
-                    <div style="background: white; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
-                        <h1 style="color: #667eea; font-size: 48px; margin: 0; letter-spacing: 8px;">${otp}</h1>
+                <div style="padding: 30px; text-align: center;">
+                    <h2 style="color: #fff; margin-top: 0;">Your Verification OTP</h2>
+                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px; text-align: center; margin: 20px 0; border: 1px solid rgba(0,255,157,0.2);">
+                        <h1 style="color: #00ff9d; font-size: 44px; margin: 0; letter-spacing: 8px; font-weight: 900;">${otp}</h1>
                     </div>
-                    <p>This OTP will expire in ${OTP_EXPIRY_MINUTES} minutes.</p>
-                    <p style="color: #6b7280; font-size: 12px;">If you didn't request this OTP, please ignore this email.</p>
+                    <p style="color: #94A3B8; font-size: 14px;">This OTP will expire in ${OTP_EXPIRY_MINUTES} minutes.</p>
+                    <p style="color: #64748B; font-size: 12px; margin-top: 20px;">If you didn't request this OTP, please ignore this email.</p>
                 </div>
             </div>
         `

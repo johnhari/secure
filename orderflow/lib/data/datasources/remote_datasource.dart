@@ -3,15 +3,17 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import '../../core/constants/app_constants.dart';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
+
 class RemoteDataSource {
   final http.Client _client;
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
   RemoteDataSource({http.Client? client, FirebaseFirestore? firestore}) 
       : _client = client ?? http.Client(),
         _firestore = firestore ?? FirebaseFirestore.instance;
 
-  FirebaseFirestore get firestore => _firestore;
+  FirebaseFirestore? get firestore => _firestore;
 
   /// Save orderflow data (admin only)
   Future<Map<String, dynamic>> saveOrderflow({
@@ -127,8 +129,16 @@ class RemoteDataSource {
     required String token,
     required String uid,
     required bool isApproved,
+    bool? allowDualDevice,
   }) async {
     final url = Uri.parse('${AppConstants.backendUrl}/updateUserStatus/$uid');
+
+    final payload = <String, dynamic>{
+      'isApproved': isApproved,
+    };
+    if (allowDualDevice != null) {
+      payload['allowDualDevice'] = allowDualDevice;
+    }
 
     final response = await _client.put(
       url,
@@ -136,9 +146,7 @@ class RemoteDataSource {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({
-        'isApproved': isApproved,
-      }),
+      body: jsonEncode(payload),
     );
 
     if (response.statusCode != 200) {

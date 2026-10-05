@@ -188,12 +188,23 @@ class CandleStreamNotifier extends StateNotifier<CandleStreamState> {
       
       final rtdbCandles = await _candleRepository.fetchHistoricalCandles(symbol);
       if (rtdbCandles.isNotEmpty) {
-        // Dedup by 5-minute bucket
+        // Dedup by 5-minute bucket: keep fresh OHLC and preserve orderflow
         final Map<int, CandleModel> bucketMap = {};
         for (final c in rtdbCandles) {
           final bucket = c.timeStart.millisecondsSinceEpoch ~/ (5 * 60 * 1000);
-          if (!bucketMap.containsKey(bucket) || (c.buyerCount != null && c.buyerCount! > 0)) {
+          final existing = bucketMap[bucket];
+          if (existing == null) {
             bucketMap[bucket] = c;
+          } else {
+            bucketMap[bucket] = c.copyWith(
+              buyerCount: existing.buyerCount ?? c.buyerCount,
+              sellerCount: existing.sellerCount ?? c.sellerCount,
+              isBigSignal: existing.isBigSignal || c.isBigSignal,
+              isMediumSignal: existing.isMediumSignal || c.isMediumSignal,
+              isInjected: existing.isInjected || c.isInjected,
+              imbalances: existing.imbalances.isNotEmpty ? existing.imbalances : c.imbalances,
+              footprint: existing.footprint.isNotEmpty ? existing.footprint : c.footprint,
+            );
           }
         }
         final dedupedRtdb = bucketMap.values.toList()
@@ -397,8 +408,18 @@ class CandleStreamNotifier extends StateNotifier<CandleStreamState> {
         for (final c in candles) {
           final bucket = c.timeStart.millisecondsSinceEpoch ~/ (5 * 60 * 1000);
           final existing = bucketMap[bucket];
-          if (existing == null || (c.buyerCount != null && c.buyerCount! > 0)) {
+          if (existing == null) {
             bucketMap[bucket] = c;
+          } else {
+            bucketMap[bucket] = c.copyWith(
+              buyerCount: existing.buyerCount ?? c.buyerCount,
+              sellerCount: existing.sellerCount ?? c.sellerCount,
+              isBigSignal: existing.isBigSignal || c.isBigSignal,
+              isMediumSignal: existing.isMediumSignal || c.isMediumSignal,
+              isInjected: existing.isInjected || c.isInjected,
+              imbalances: existing.imbalances.isNotEmpty ? existing.imbalances : c.imbalances,
+              footprint: existing.footprint.isNotEmpty ? existing.footprint : c.footprint,
+            );
           }
         }
         final dedupedCandles = bucketMap.values.toList()

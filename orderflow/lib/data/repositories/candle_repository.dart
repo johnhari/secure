@@ -22,6 +22,24 @@ class CandleRepository {
         _firebaseMarketDataSource = firebaseMarketDataSource,
         _localCache = localCache;
 
+  /// Returns true if a candle has valid prices and falls strictly within NSE/BSE market trading hours (09:15 to 15:40 IST)
+  static bool isValidMarketHoursCandle(CandleModel c) {
+    if (c.open <= 0 || c.high <= 0 || c.low <= 0 || c.close <= 0 || c.timeStart.year < 2000) {
+      return false;
+    }
+    final ist = c.timeStart.toUtc().add(const Duration(hours: 5, minutes: 30));
+    if (!YahooDataSource.isTradingDay(ist)) {
+      return false;
+    }
+    final minuteOfDay = ist.hour * 60 + ist.minute;
+    // 09:15 IST = 555 min, 15:35 IST = 935 min (candle runs 15:35 to 15:40).
+    // Market officially closes at 15:40 IST (3:40 PM).
+    if (minuteOfDay < 555 || minuteOfDay > 935) {
+      return false;
+    }
+    return true;
+  }
+
   /// Fetch candles with local cache support (2-day policy)
   Future<List<CandleModel>> fetchHistoricalCandles(String symbol) async {
     try {
@@ -81,18 +99,17 @@ class CandleRepository {
         if (existing == null) {
           bucketMap[bucket] = c;
         } else {
-          // Prefer the candle with more data (non-zero buyerCount / injected)
-          final prefer = (c.buyerCount != null && c.buyerCount! > 0) ? c : existing;
-          bucketMap[bucket] = _mergeCandle(existing, prefer);
+          // ALWAYS apply fresh market OHLC prices from c, while preserving any orderflow data from existing
+          bucketMap[bucket] = _mergeCandle(existing, c);
         }
       }
 
       final merged = bucketMap.values.toList()
         ..sort((a, b) => a.timeStart.compareTo(b.timeStart));
 
-      // Filter to only the last 3 trading days of data
+      // Filter to only the last 3 trading days of data and strictly within market hours
       final cutoff = YahooDataSource.lastNTradingDaysStart(3);
-      final filteredMerged = merged.where((c) => !c.timeStart.isBefore(cutoff)).toList();
+      final filteredMerged = merged.where((c) => !c.timeStart.isBefore(cutoff) && isValidMarketHoursCandle(c)).toList();
 
       // Limit to max cached candles (e.g. 600)
       final List<CandleModel> finalCandles = filteredMerged.length > AppConstants.maxCachedCandles
@@ -107,7 +124,7 @@ class CandleRepository {
       final result = _ensureLiveNode(symbol, finalCandles);
       
       // Filter result one final time just in case _ensureLiveNode added older nodes
-      final filteredResult = result.where((c) => !c.timeStart.isBefore(cutoff)).toList();
+      final filteredResult = result.where((c) => !c.timeStart.isBefore(cutoff) && isValidMarketHoursCandle(c)).toList();
 
       // Save back to cache to ensure 'last 3 days' are persisted even if Yahoo is throttled next time
       await _localCache.cacheCandles(symbol, filteredResult);
@@ -118,7 +135,7 @@ class CandleRepository {
       final cached = await getCachedCandles(symbol);
       final cutoff = YahooDataSource.lastNTradingDaysStart(3);
       final result = _ensureLiveNode(symbol, cached);
-      return result.where((c) => !c.timeStart.isBefore(cutoff)).toList();
+      return result.where((c) => !c.timeStart.isBefore(cutoff) && isValidMarketHoursCandle(c)).toList();
     }
   }
 
@@ -129,22 +146,18 @@ class CandleRepository {
     final istNow = now.toUtc().add(const Duration(hours: 5, minutes: 30));
     
     final marketStartTodayLocal = DateTime.utc(istNow.year, istNow.month, istNow.day, 3, 45).toLocal();
-    final marketEndTodayLocal = DateTime.utc(istNow.year, istNow.month, istNow.day, 10, 10).toLocal();
+    final marketEndTodayLocal = DateTime.utc(istNow.year, istNow.month, istNow.day, 10, 10).toLocal(); // 15:40 IST (Market close at 3:40 PM)
     
-    // Filter out invalid zero/corrupt candles
-    final validCurrentCandles = currentCandles.where((c) =>
-      c.open > 0 && c.high > 0 && c.low > 0 && c.close > 0 && c.timeStart.year >= 2000
-    ).toList();
+    // Filter out invalid zero/corrupt candles and after-hours orphans
+    final validCurrentCandles = currentCandles.where(isValidMarketHoursCandle).toList();
 
-    // --- AGGRESSIVE MULTI-DAY BOOTSTRAP ---
-    // If empty or sparse, generate/fill last 3 trading days to ensure a rich terminal history
-    if (validCurrentCandles.length < 50) { 
-      print('CandleRepository [$symbol]: History sparse (${validCurrentCandles.length} nodes). Ensuring 3-day bootstrap for Web stability...');
+    // --- FALLBACK BOOTSTRAP (ONLY IF NO REAL CANDLES EXIST AT ALL) ---
+    if (validCurrentCandles.isEmpty) { 
+      print('CandleRepository [$symbol]: No history available. Generating initial session nodes...');
       List<CandleModel> bootstrapNodes = [];
-      double lastClose = (symbol.toUpperCase().contains('BANK')) ? 52200.0 : 24232.0;
-      if (validCurrentCandles.isNotEmpty) {
-        lastClose = validCurrentCandles.last.close;
-      }
+      double lastClose = (symbol.toUpperCase().contains('BANK')) ? 56200.0 : 23300.0;
+      if (symbol.toUpperCase().contains('SENSEX')) lastClose = 74500.0;
+      if (symbol.toUpperCase().contains('FINNIFTY')) lastClose = 23900.0;
       
       for (int d = 2; d >= 0; d--) {
         final targetDate = istNow.subtract(Duration(days: d));
@@ -152,7 +165,7 @@ class CandleRepository {
         if (!isTargetTradingDay) continue; 
 
         final sessionStart = DateTime.utc(targetDate.year, targetDate.month, targetDate.day, 3, 45).toLocal();
-        final sessionEnd = DateTime.utc(targetDate.year, targetDate.month, targetDate.day, 10, 10).toLocal();
+        final sessionEnd = DateTime.utc(targetDate.year, targetDate.month, targetDate.day, 10, 10).toLocal(); // 15:40 IST (Market close at 3:40 PM)
 
         DateTime generationLimit = sessionEnd;
         if (d == 0) {
@@ -163,11 +176,11 @@ class CandleRepository {
         DateTime iterator = sessionStart;
         while (iterator.isBefore(generationLimit)) {
           final random = math.Random(iterator.millisecondsSinceEpoch);
-          final double maxBarMove = (symbol.toUpperCase().contains('BANK')) ? 14.0 : 5.5;
-          final double change = (random.nextDouble() - 0.5) * maxBarMove;
+          final double maxBarMove = (symbol.toUpperCase().contains('BANK')) ? 8.0 : 3.0;
+          final double change = (random.nextDouble() - 0.48) * maxBarMove;
           final double open = lastClose;
           final double close = open + change;
-          final double maxWick = (symbol.toUpperCase().contains('BANK')) ? 6.0 : 2.5;
+          final double maxWick = (symbol.toUpperCase().contains('BANK')) ? 4.0 : 1.5;
           final double wick = random.nextDouble() * maxWick;
           final double high = math.max(open, close) + wick;
           final double low = math.min(open, close) - wick;
@@ -199,7 +212,7 @@ class CandleRepository {
           map[c.timeStart.millisecondsSinceEpoch ~/ (5 * 60 * 1000)] = c;
         }
         final mergedBootstrap = map.values.toList()..sort((a, b) => a.timeStart.compareTo(b.timeStart));
-        print('CandleRepository [$symbol]: CRITICAL BOOTSTRAP - Generated ${mergedBootstrap.length} historical nodes.');
+        print('CandleRepository [$symbol]: Generated ${mergedBootstrap.length} initial historical nodes.');
         return mergedBootstrap;
       }
     }
@@ -225,7 +238,7 @@ class CandleRepository {
       );
     }
 
-    final List<CandleModel> list = List.from(currentCandles);
+    final List<CandleModel> list = List.from(validCurrentCandles);
     // Sort initially to make searching faster and lastPrice reliable
     list.sort((a, b) => a.timeStart.compareTo(b.timeStart));
     
@@ -254,33 +267,27 @@ class CandleRepository {
       currentLastPrice = list.last.close;
     }
 
-    // ── HARD SEED FALLBACK ────────────────────────────────────────────────────
-    // If we have no reference price, use a hardcoded safe seed for the instrument
-    // This ensures the chart AT LEAST boots up and allows injection even if Yahoo is down.
     if (currentLastPrice == 0.0) {
       final Map<String, double> hardSeeds = {
-        '^NSEI': 24200.0,
-        '^NSEBANK': 52500.0,
-        'NIFTY': 24200.0,
-        'BANKNIFTY': 52500.0,
+        '^NSEI': 23300.0,
+        '^NSEBANK': 56200.0,
+        'NIFTY': 23300.0,
+        'NIFTY50': 23300.0,
+        'BANKNIFTY': 56200.0,
+        'SENSEX': 74500.0,
+        'FINNIFTY': 23900.0,
       };
-      currentLastPrice = hardSeeds[symbol.toUpperCase()] ?? 24000.0;
-      print('CandleRepository [$symbol]: Using hardcoded seed price: $currentLastPrice');
+      currentLastPrice = hardSeeds[symbol.toUpperCase()] ?? 23300.0;
     }
 
     while (iterator.isBefore(generationEnd)) {
       final int ts = iterator.millisecondsSinceEpoch;
       
       if (!existingTimes.contains(ts)) {
-        final int step = list.length;
-        final double direction = (step % 2 == 0) ? 1.0 : -1.0;
-        final double bodySize = 8.0 + (step % 5) * 3.0;
-        final double wickSize = 4.0 + (step % 3) * 2.0;
-        
         final double openPrice = currentLastPrice;
-        final double closePrice = openPrice + (direction * bodySize);
-        final double highPrice = math.max(openPrice, closePrice) + wickSize;
-        final double lowPrice = math.min(openPrice, closePrice) - wickSize;
+        final double closePrice = currentLastPrice;
+        final double highPrice = currentLastPrice + 0.5;
+        final double lowPrice = currentLastPrice - 0.5;
 
         list.add(CandleModel(
           symbol: symbol,
@@ -290,7 +297,7 @@ class CandleRepository {
           high: highPrice,
           low: lowPrice,
           close: closePrice,
-          volume: 120 + (step % 7) * 45,
+          volume: 0,
           candleKey: ts.toString(),
         ));
         
@@ -317,14 +324,14 @@ class CandleRepository {
     if (existing == null) return incoming;
     
     return incoming.copyWith(
-      buyerCount: existing.buyerCount,
-      sellerCount: existing.sellerCount,
-      isBigSignal: existing.isBigSignal,
-      isMediumSignal: existing.isMediumSignal,
-      isInjected: existing.isInjected,
-      injectedBy: existing.injectedBy,
-      imbalances: existing.imbalances,
-      footprint: existing.footprint,
+      buyerCount: existing.buyerCount ?? incoming.buyerCount,
+      sellerCount: existing.sellerCount ?? incoming.sellerCount,
+      isBigSignal: existing.isBigSignal || incoming.isBigSignal,
+      isMediumSignal: existing.isMediumSignal || incoming.isMediumSignal,
+      isInjected: existing.isInjected || incoming.isInjected,
+      injectedBy: existing.injectedBy ?? incoming.injectedBy,
+      imbalances: existing.imbalances.isNotEmpty ? existing.imbalances : incoming.imbalances,
+      footprint: existing.footprint.isNotEmpty ? existing.footprint : incoming.footprint,
     );
   }
 
@@ -356,7 +363,7 @@ class CandleRepository {
   Future<List<CandleModel>> getCachedCandles(String symbol) async {
     final cached = await _localCache.getCachedCandles(symbol);
     final cutoff = YahooDataSource.lastNTradingDaysStart(3);
-    return cached.where((c) => !c.timeStart.isBefore(cutoff)).toList();
+    return cached.where((c) => !c.timeStart.isBefore(cutoff) && isValidMarketHoursCandle(c)).toList();
   }
 
   /// Cache candles
@@ -404,18 +411,18 @@ class CandleRepository {
     print('CandleRepository [$symbol]: Generating historical session replay nodes for ${date.year}-${date.month}-${date.day}');
     final List<CandleModel> fallbackNodes = [];
     final marketStart = DateTime(date.year, date.month, date.day, 9, 15);
-    final marketEnd = DateTime(date.year, date.month, date.day, 15, 40);
-
+    final marketEnd = DateTime(date.year, date.month, date.day, 15, 30);
+ 
     final Map<String, double> seedPrices = {
-      '^NSEI': 24200.0,
-      '^NSEBANK': 52500.0,
-      'NIFTY50': 24200.0,
-      'BANKNIFTY': 52500.0,
-      'FINNIFTY': 23400.0,
+      '^NSEI': 23300.0,
+      '^NSEBANK': 56200.0,
+      'NIFTY50': 23300.0,
+      'BANKNIFTY': 56200.0,
+      'FINNIFTY': 23900.0,
       'MIDCPNIFTY': 13100.0,
-      'SENSEX': 79500.0,
+      'SENSEX': 74500.0,
     };
-    double currentPrice = seedPrices[symbol.toUpperCase()] ?? 24000.0;
+    double currentPrice = seedPrices[symbol.toUpperCase()] ?? 23300.0;
     DateTime iterator = marketStart;
 
     int index = 0;
@@ -465,6 +472,11 @@ class CandleRepository {
   /// Stream the latest AI trade signal for an instrument
   Stream<Map<String, dynamic>?> getSignalStream(String instrument) {
     return _firebaseMarketDataSource.getSignalStream(instrument);
+  }
+
+  /// Stream the active stock signals summary (count & active volatile stocks) from RTDB
+  Stream<Map<String, dynamic>?> getActiveSignalsSummaryStream() {
+    return _firebaseMarketDataSource.getActiveSignalsSummaryStream();
   }
 
   /// Fetch signal history for an instrument

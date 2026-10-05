@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'dart:io' show Platform;
+import 'dart:convert';
 import 'dart:math';
 import 'dart:ui';
+import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,6 +21,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/constants/nifty_stocks.dart';
 import '../../core/constants/stock_logos.dart';
 import '../../data/models/candle_model.dart';
+import '../../data/repositories/candle_repository.dart';
 import '../widgets/scrolling_news_ticker.dart';
 import '../../data/models/news_item.dart';
 import '../../domain/entities/candle.dart';
@@ -31,6 +33,7 @@ import '../../core/services/notification_service.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/services/market_time_service.dart';
 import '../../core/services/audio_service.dart';
+import '../../domain/services/pre_market_bias_service.dart';
 import '../providers/auth_provider.dart';
 import '../providers/news_provider.dart';
 
@@ -107,7 +110,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
   final _newsTickerController = TextEditingController();
   final _tickerScrollController = ScrollController();
   DateTime? _selectedCandleTime;
-  double _selectedBubbleScale = 5.0;
+  double _selectedBubbleScale = 3.0;
   double _selectedPulseSpeed = 1.0;
   double _selectedBubbleOpacity = 0.65;
   
@@ -126,6 +129,9 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
   int _scanTotal = 0;
   List<Map<String, dynamic>> _suggestedSimilarStocks = [];
   final Set<String> _selectedSimilarStocksToInject = {};
+  
+  // Instrument card refresh state
+  bool _isCardRefreshing = false;
   
   // Focus nodes for keyboard shortcuts
   final FocusNode _keyboardFocusNode = FocusNode();
@@ -306,14 +312,16 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
         final user = authState.user;
 
         if (authState.status == AuthStatus.authenticated && user != null) {
-          // #2: RTDB onDisconnect presence — auto-clears when user disconnects
-          try {
-            final presenceRef = FirebaseDatabase.instance.ref('presence/${user.uid}');
-            await presenceRef.set({'online': true, 'lastSeen': ServerValue.timestamp});
-            // When connection drops, RTDB server removes the key automatically
-            await presenceRef.onDisconnect().remove();
-          } catch (e) {
-            debugPrint('[PRESENCE] Failed to set RTDB presence: $e');
+          // #2: RTDB onDisconnect presence — auto-clears when user disconnects (native only)
+          if (!kIsWeb) {
+            try {
+              final presenceRef = FirebaseDatabase.instance.ref('presence/${user.uid}');
+              await presenceRef.set({'online': true, 'lastSeen': ServerValue.timestamp});
+              // When connection drops, RTDB server removes the key automatically
+              await presenceRef.onDisconnect().remove();
+            } catch (e) {
+              debugPrint('[PRESENCE] Failed to set RTDB presence: $e');
+            }
           }
 
           // Re-subscribe FCM topics based on subscription plan type
@@ -453,6 +461,627 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
         );
       }
     });
+  }
+
+  bool _isScanningStocks = false;
+
+  Future<void> _triggerStockScan(BuildContext context) async {
+    if (_isScanningStocks) return;
+    setState(() => _isScanningStocks = true);
+    HapticFeedback.heavyImpact();
+
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.goldColor),
+            ),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'Analyzing 50 Nifty stocks for high volatility & winning setups...',
+                style: TextStyle(color: Colors.white, fontSize: 12),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: Color(0xFF141926),
+        duration: Duration(seconds: 4),
+      ),
+    );
+
+    try {
+      final response = await http.get(
+        Uri.parse('https://us-central1-mst7-3fb55.cloudfunctions.net/apiScanAndInjectStocks'),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final count = data['count'] ?? 0;
+        if (mounted) {
+          ScaffoldMessenger.of(context).removeCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded, color: AppTheme.bullColor, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Scan complete! $count volatile stock setups auto-injected.',
+                      style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF141926),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Auto-inject scan error: $e', style: const TextStyle(color: AppTheme.bearColor, fontSize: 12)),
+            backgroundColor: const Color(0xFF141926),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isScanningStocks = false);
+      }
+    }
+  }
+
+  Widget _buildSignalBellButton({required bool isCompact}) {
+    return Consumer(
+      builder: (context, ref, _) {
+        final summaryAsync = ref.watch(activeSignalsSummaryProvider);
+        final summaryData = summaryAsync.value;
+        final int count = (summaryData != null && summaryData['count'] != null)
+            ? (summaryData['count'] as num).toInt()
+            : 0;
+
+        final size = isCompact ? 32.0 : 36.0;
+        final iconSize = isCompact ? 18.0 : 20.0;
+        final bool hasSignals = count > 0;
+        // Vibrant lively green matching the user's notification bell image
+        const Color bellGreenColor = Color(0xFF4CD964);
+        final Color bellColor = bellGreenColor;
+
+        return Tooltip(
+          message: hasSignals
+              ? '$count Active Volatile Stock Signals (Tap to view)'
+              : 'Volatile Stock Signals (Tap to scan)',
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.mediumImpact();
+                _showActiveStockSignalsSheet(context, summaryData);
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: size,
+                height: size,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: hasSignals
+                      ? const Color(0xFF0D2518)
+                      : const Color(0xFF112217),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: hasSignals
+                        ? bellGreenColor.withValues(alpha: 0.8)
+                        : bellGreenColor.withValues(alpha: 0.4),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: bellGreenColor.withValues(alpha: hasSignals ? 0.4 : 0.15),
+                      blurRadius: 6,
+                      spreadRadius: 0.5,
+                    ),
+                  ],
+                ),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  alignment: Alignment.center,
+                  children: [
+                    Icon(
+                      hasSignals
+                          ? Icons.notifications_active_rounded
+                          : Icons.notifications_none_rounded,
+                      color: bellColor,
+                      size: iconSize,
+                    ),
+                    if (hasSignals)
+                      Positioned(
+                        top: -5,
+                        right: -6,
+                        child: Container(
+                          width: 17,
+                          height: 17,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFFF3B30), // Bright red notification badge matching image
+                            border: Border.all(color: Colors.white, width: 1.2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF3B30).withValues(alpha: 0.75),
+                                blurRadius: 4,
+                                spreadRadius: 0.5,
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Text(
+                              count > 9 ? '9+' : '$count',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w900,
+                                fontFamily: 'monospace',
+                                height: 1.0,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showActiveStockSignalsSheet(BuildContext context, [Map<String, dynamic>? initialSummary]) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return ClipRRect(
+          borderRadius: const BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: Container(
+              height: MediaQuery.of(context).size.height * 0.82,
+              decoration: BoxDecoration(
+                color: const Color(0xFF070B14).withValues(alpha: 0.96),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
+                ),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1), width: 1.5),
+              ),
+              child: Consumer(
+                builder: (context, ref, child) {
+                  final summaryAsync = ref.watch(activeSignalsSummaryProvider);
+                  final summary = summaryAsync.value ?? initialSummary;
+                  final rawStocks = summary != null ? summary['activeStocks'] : null;
+
+                  final List<Map<String, dynamic>> activeList = [];
+                  if (rawStocks is Map) {
+                    rawStocks.forEach((k, v) {
+                      if (v is Map) {
+                        activeList.add(Map<String, dynamic>.from(v));
+                      }
+                    });
+                  }
+
+                  // Sort by winRatio descending
+                  activeList.sort((a, b) {
+                    final int wrA = (a['winRatio'] as num?)?.toInt() ?? 0;
+                    final int wrB = (b['winRatio'] as num?)?.toInt() ?? 0;
+                    return wrB.compareTo(wrA);
+                  });
+
+                  final count = activeList.length;
+
+                  return Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.25),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      // Header Row
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(7),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF4CD964).withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFF4CD964).withValues(alpha: 0.5), width: 1.2),
+                              ),
+                              child: const Icon(Icons.notifications_active_rounded, color: Color(0xFF4CD964), size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Wrap(
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 8,
+                                    runSpacing: 4,
+                                    children: [
+                                      const Text(
+                                        'STOCK SIGNALS',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 1.0,
+                                        ),
+                                      ),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFFF3B30),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Text(
+                                          '$count ACTIVE',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    'High winning ratio setups auto-injected — Tap stock to view chart',
+                                    style: TextStyle(
+                                      color: Colors.white.withValues(alpha: 0.55),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () => _triggerStockScan(context),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.primaryCyan.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.4), width: 1),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    _isScanningStocks
+                                        ? const SizedBox(
+                                            width: 12,
+                                            height: 12,
+                                            child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryCyan),
+                                          )
+                                        : const Icon(Icons.refresh_rounded, color: AppTheme.primaryCyan, size: 14),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _isScanningStocks ? 'SCANNING' : 'RE-SCAN',
+                                      style: const TextStyle(
+                                        color: AppTheme.primaryCyan,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Divider(color: Colors.white12, height: 1),
+
+                      // Content Body
+                      Expanded(
+                        child: activeList.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          color: Colors.white.withValues(alpha: 0.03),
+                                          border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1.5),
+                                        ),
+                                        child: const Icon(Icons.radar_rounded, color: AppTheme.primaryCyan, size: 48),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'NO HIGH VOLATILITY SETUPS',
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w900,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 6),
+                                      Text(
+                                        'Only volatile stocks (>1.2% range) with >= 75% winning ratio are auto-injected.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(color: Colors.white.withValues(alpha: 0.45), fontSize: 11),
+                                      ),
+                                      const SizedBox(height: 20),
+                                      ElevatedButton.icon(
+                                        onPressed: () => _triggerStockScan(context),
+                                        icon: const Icon(Icons.bolt_rounded, size: 16, color: Colors.black),
+                                        label: const Text('RUN INSTANT SCAN NOW', style: TextStyle(color: Colors.black, fontWeight: FontWeight.w900, fontSize: 11)),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppTheme.goldColor,
+                                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                itemCount: activeList.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final stock = activeList[index];
+                                  final String symbol = stock['symbol']?.toString() ?? '';
+                                  final String name = stock['name']?.toString() ?? symbol;
+                                  final String signal = stock['signal']?.toString().toUpperCase() ?? 'BUY';
+                                  final int winRatio = (stock['winRatio'] as num?)?.toInt() ?? 80;
+                                  final String strategy = stock['strategy']?.toString() ?? 'Volatility Breakout';
+                                  final num price = (stock['price'] as num?) ?? 0;
+                                  final num changePercent = (stock['changePercent'] as num?) ?? 0;
+                                  final num volatility = (stock['volatility'] as num?) ?? 0;
+                                  final String reason = stock['reason']?.toString() ?? '';
+
+                                  final bool isBuy = signal.contains('BUY');
+                                  final Color dirColor = isBuy ? AppTheme.bullColor : AppTheme.bearColor;
+                                  final IconData dirIcon = isBuy ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded;
+
+                                  return InkWell(
+                                    onTap: () {
+                                      HapticFeedback.mediumImpact();
+                                      Navigator.pop(context);
+                                      _triggerSearchTransition(symbol);
+                                    },
+                                    borderRadius: BorderRadius.circular(16),
+                                    child: Container(
+                                      padding: const EdgeInsets.all(14),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF0F1522),
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: dirColor.withValues(alpha: 0.35), width: 1.2),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: dirColor.withValues(alpha: 0.08),
+                                            blurRadius: 10,
+                                            spreadRadius: 0,
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          // Top Row: Logo, Symbol, Direction, Win Ratio
+                                          Row(
+                                            children: [
+                                              _buildInstrumentLogo(symbol, size: 36),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                                  children: [
+                                                    Row(
+                                                      children: [
+                                                        Text(
+                                                          symbol,
+                                                          style: const TextStyle(
+                                                            color: Colors.white,
+                                                            fontSize: 15,
+                                                            fontWeight: FontWeight.w900,
+                                                            letterSpacing: 0.5,
+                                                          ),
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Container(
+                                                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                                                          decoration: BoxDecoration(
+                                                            color: dirColor.withValues(alpha: 0.15),
+                                                            borderRadius: BorderRadius.circular(6),
+                                                            border: Border.all(color: dirColor, width: 1),
+                                                          ),
+                                                          child: Row(
+                                                            mainAxisSize: MainAxisSize.min,
+                                                            children: [
+                                                              Icon(dirIcon, color: dirColor, size: 12),
+                                                              const SizedBox(width: 3),
+                                                              Text(
+                                                                signal,
+                                                                style: TextStyle(
+                                                                  color: dirColor,
+                                                                  fontSize: 10,
+                                                                  fontWeight: FontWeight.w900,
+                                                                ),
+                                                              ),
+                                                            ],
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      name,
+                                                      maxLines: 1,
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        color: Colors.white.withValues(alpha: 0.6),
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              // Win Ratio Pill
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.goldColor.withValues(alpha: 0.15),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(color: AppTheme.goldColor, width: 1.2),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: AppTheme.goldColor.withValues(alpha: 0.3),
+                                                      blurRadius: 6,
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    const Icon(Icons.local_fire_department_rounded, color: AppTheme.goldColor, size: 14),
+                                                    const SizedBox(width: 3),
+                                                    Text(
+                                                      '$winRatio% WIN',
+                                                      style: const TextStyle(
+                                                        color: AppTheme.goldColor,
+                                                        fontSize: 11,
+                                                        fontWeight: FontWeight.w900,
+                                                        letterSpacing: 0.5,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 10),
+
+                                          // Clean Price Tag
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(alpha: 0.05),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: Colors.white.withValues(alpha: 0.12), width: 0.8),
+                                            ),
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children:
+                                                [
+                                                  Text(
+                                                    'Price: ₹$price',
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    '(${changePercent >= 0 ? '+' : ''}${changePercent.toStringAsFixed(2)}%)',
+                                                    style: TextStyle(
+                                                      color: changePercent >= 0 ? AppTheme.bullColor : AppTheme.bearColor,
+                                                      fontSize: 11,
+                                                      fontWeight: FontWeight.w800,
+                                                      fontFamily: 'monospace',
+                                                    ),
+                                                  ),
+                                                ],
+                                            ),
+                                          ),
+                                          const SizedBox(height: 10),
+                                          // CTA View Button
+                                          Container(
+                                            width: double.infinity,
+                                            padding: const EdgeInsets.symmetric(vertical: 8),
+                                            decoration: BoxDecoration(
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  AppTheme.primaryCyan.withValues(alpha: 0.15),
+                                                  AppTheme.goldColor.withValues(alpha: 0.15),
+                                                ],
+                                              ),
+                                              borderRadius: BorderRadius.circular(8),
+                                              border: Border.all(
+                                                color: AppTheme.primaryCyan.withValues(alpha: 0.4),
+                                                width: 1,
+                                              ),
+                                            ),
+                                            child: const Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Icon(Icons.candlestick_chart_rounded, color: AppTheme.primaryCyan, size: 15),
+                                                SizedBox(width: 6),
+                                                Text(
+                                                  'VIEW CHART & INJECTED ORDERFLOW',
+                                                  style: TextStyle(
+                                                    color: Colors.white,
+                                                    fontSize: 10.5,
+                                                    fontWeight: FontWeight.w900,
+                                                    letterSpacing: 0.8,
+                                                  ),
+                                                ),
+                                                SizedBox(width: 4),
+                                                Icon(Icons.arrow_forward_rounded, color: AppTheme.primaryCyan, size: 13),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _showSignalsBottomSheet(BuildContext context) {
@@ -965,18 +1594,20 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
   void _showHeavyAlert(String type, int count, bool isBuyer, {int? candleTime}) {
     if (!mounted) return;
 
-    // Trigger Windows OS Notification with Stock/Index symbol and Volume
+    // Trigger Windows OS Notification ONLY for INDICES (Stocks are routed to in-app bell)
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
       final activeSymbol = ref.read(selectedInstrumentProvider);
-      NotificationService.showWindowsStockNotification(
-        symbol: activeSymbol,
-        alertType: type,
-        volumeCount: count,
-        price: _lastKnownPrice > 0 ? _lastKnownPrice : null,
-        buyVolume: isBuyer ? count : 0,
-        sellVolume: !isBuyer ? count : 0,
-        candleTime: candleTime,
-      );
+      if (NiftyStocks.isIndex(activeSymbol)) {
+        NotificationService.showWindowsStockNotification(
+          symbol: activeSymbol,
+          alertType: type,
+          volumeCount: count,
+          price: _lastKnownPrice > 0 ? _lastKnownPrice : null,
+          buyVolume: isBuyer ? count : 0,
+          sellVolume: !isBuyer ? count : 0,
+          candleTime: candleTime,
+        );
+      }
     }
 
     // --- MAINTENANCE MODE BYPASS ---
@@ -1694,7 +2325,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
   Future<void> _checkForUpdate(Map<String, dynamic> config) async {
     if (!mounted) return;
     // APK updates are strictly for Android devices only (not Windows / Web)
-    if (kIsWeb || !Platform.isAndroid) return;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
     try {
       final info = await PackageInfo.fromPlatform();
       final latestVersion = config['latestVersion'] as String? ?? '';
@@ -1905,7 +2536,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
       }
       
       if (next.user != null) {
-        _updateScreenshotProtection(next.user!.isAdmin, _lastAllowAdminScreenshots ?? false);
+        _updateScreenshotProtection(next.user?.isAdmin ?? false, _lastAllowAdminScreenshots ?? false);
       }
     });
 
@@ -1969,19 +2600,21 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
     if (latestCandle != null && candleState.candles.isNotEmpty) {
       final latestDate = latestCandle.timeStart;
       
-      // Find today's candles
+      // Find today's candles strictly within market hours (09:15 to 15:40)
       final todayCandles = candleState.candles.where((c) => 
         c.timeStart.year == latestDate.year &&
         c.timeStart.month == latestDate.month &&
-        c.timeStart.day == latestDate.day
+        c.timeStart.day == latestDate.day &&
+        CandleRepository.isValidMarketHoursCandle(c)
       ).toList();
       
       final todayFirstCandle = todayCandles.isNotEmpty ? todayCandles.first : candleState.candles.first;
       sessionOpenPrice = todayFirstCandle.open.toDouble();
       
-      // Find previous trading day's candles (any candle before today's date)
+      // Find previous trading day's candles strictly within market hours (closing at 15:40 EOD)
       final prevDayCandles = candleState.candles.where((c) => 
-        c.timeStart.isBefore(DateTime(latestDate.year, latestDate.month, latestDate.day))
+        c.timeStart.isBefore(DateTime(latestDate.year, latestDate.month, latestDate.day)) &&
+        CandleRepository.isValidMarketHoursCandle(c)
       ).toList();
       
       referencePrice = prevDayCandles.isNotEmpty 
@@ -2497,15 +3130,13 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
           ),
           child: Row(
             children: [
-              // Logo
+              // Logo (Tap to open Admin Centre)
               GestureDetector(
                 onTap: () {
-                  if (!isSuperuser && !isAdmin) return;
                   HapticFeedback.lightImpact();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanelScreen()));
                 },
                 onLongPress: () {
-                  if (!isSuperuser && !isAdmin) return;
                   HapticFeedback.heavyImpact();
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanelScreen()));
                 },
@@ -2514,18 +3145,21 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                   child: Container(
                     width: 32,
                     height: 32,
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(4),
+                    clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: const Color(0xFF202026),
                       border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
                     ),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) => Container(
-                        color: AppTheme.cardColor,
-                        child: const Icon(Icons.show_chart_rounded, color: AppTheme.primaryCyan, size: 16),
+                    child: ClipOval(
+                      child: Image.asset(
+                        'assets/images/logo.png',
+                        fit: BoxFit.contain,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          color: AppTheme.cardColor,
+                          child: const Icon(Icons.show_chart_rounded, color: AppTheme.primaryCyan, size: 16),
+                        ),
                       ),
                     ),
                   ),
@@ -2599,7 +3233,6 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
               Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-
                   _buildIconButton(
                     icon: Icons.campaign_rounded,
                     color: AppTheme.goldColor,
@@ -2623,31 +3256,12 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                       );
                     },
                   ),
-                  _buildIconButton(
-                    icon: Icons.refresh_rounded,
-                    color: AppTheme.primaryCyan,
-                    tooltip: 'Refresh Data',
-                    onPressed: () async {
-                      HapticFeedback.mediumImpact();
-                      ScaffoldMessenger.of(context).removeCurrentSnackBar();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              Icon(Icons.refresh_rounded, color: AppTheme.primaryCyan, size: 18),
-                              SizedBox(width: 8),
-                              Text('Refreshing orderflow & candles...'),
-                            ],
-                          ),
-                          backgroundColor: AppTheme.cardColor,
-                          duration: Duration(seconds: 1),
-                        ),
-                      );
-                      await ref.read(candleStreamProvider.notifier).refresh(clearCache: true);
-                      if (mounted) setState(() {});
-                    },
-                  ),
                   const SizedBox(width: 6),
+
+                  // ── Top App Bar Bell Icon with numeric Badge (Replaces refresh icon) ──
+                  _buildSignalBellButton(isCompact: false),
+                  const SizedBox(width: 6),
+
                   _buildIconButton(
                     icon: Icons.person_rounded,
                     color: AppTheme.primaryCyan,
@@ -2662,19 +3276,6 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                   ),
                   const SizedBox(width: 6),
                   if (isAdmin || isSuperuser) ...[
-                    _buildIconButton(
-                      icon: Icons.admin_panel_settings_rounded,
-                      color: AppTheme.goldColor,
-                      tooltip: 'Admin Centre',
-                      onPressed: () {
-                        HapticFeedback.lightImpact();
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
-                        );
-                      },
-                    ),
-                    const SizedBox(width: 6),
                     if (!isReplaying) ...[
                       _buildIconButton(
                         icon: Icons.history_toggle_off_rounded,
@@ -2739,6 +3340,49 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
     );
   }
 
+  Future<void> _refreshCurrentInstrumentData() async {
+    if (_isCardRefreshing) return;
+    setState(() {
+      _isCardRefreshing = true;
+    });
+    HapticFeedback.mediumImpact();
+    final symbol = ref.read(selectedInstrumentProvider);
+    final instrumentName = AppConstants.instrumentNames[symbol] ?? symbol;
+    ScaffoldMessenger.of(context).removeCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryCyan),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Text('Refreshing $instrumentName market data & orderflow...'),
+          ],
+        ),
+        backgroundColor: AppTheme.cardColor,
+        duration: const Duration(seconds: 1),
+      ),
+    );
+
+    try {
+      await ref.read(candleStreamProvider.notifier).refresh(clearCache: true);
+    } catch (e) {
+      debugPrint('Error refreshing instrument data: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCardRefreshing = false;
+        });
+      }
+    }
+  }
+
   Widget _buildSelectedInstrumentPillCard(
     String selectedInstrument,
     double animatedPrice,
@@ -2754,24 +3398,24 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
     Widget logoWidget;
     if (StockLogos.localAssets.containsKey(cleanSymbol)) {
       logoWidget = Image.asset(
-        StockLogos.localAssets[cleanSymbol]!,
+        StockLogos.localAssets[cleanSymbol] ?? '',
         fit: BoxFit.cover,
         width: 32,
         height: 32,
-        errorBuilder: (context, error, stackTrace) => _buildDefaultInstrumentLogo(),
+        errorBuilder: (context, error, stackTrace) => _buildDefaultInstrumentLogo(cleanSymbol),
       );
     } else {
       logoWidget = _InstrumentLogoWithFallback(
         primaryUrl: StockLogos.getLogoUrl(cleanSymbol),
         fallbackUrl: StockLogos.getFallbackLogoUrl(cleanSymbol),
         size: 32,
-        defaultWidget: _buildDefaultInstrumentLogo(),
+        defaultWidget: _buildDefaultInstrumentLogo(cleanSymbol),
       );
     }
 
     return Container(
-      width: 380, // broad length!
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      width: 410, // broad length with comfortable space for refresh button
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
       decoration: BoxDecoration(
         color: const Color(0xFF0F1524).withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(16),
@@ -2843,7 +3487,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
             ],
           ),
           
-          // 2. Price Display Group
+          // 2. Price Display Group & Refresh Button
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -2884,6 +3528,54 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                   ),
                 ],
               ),
+              const SizedBox(width: 10),
+              // Refresh Button on SENSEX / Instrument Card
+              Tooltip(
+                message: 'Refresh ${AppConstants.instrumentNames[selectedInstrument] ?? selectedInstrument} Data',
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: _isCardRefreshing ? null : _refreshCurrentInstrumentData,
+                    borderRadius: BorderRadius.circular(10),
+                    hoverColor: AppTheme.primaryCyan.withValues(alpha: 0.2),
+                    splashColor: AppTheme.primaryCyan.withValues(alpha: 0.35),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF131D31),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppTheme.primaryCyan.withValues(alpha: 0.35),
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryCyan.withValues(alpha: 0.15),
+                            blurRadius: 6,
+                            spreadRadius: 0.5,
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: _isCardRefreshing
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(AppTheme.primaryCyan),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.refresh_rounded,
+                              color: AppTheme.primaryCyan,
+                              size: 18,
+                            ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ],
@@ -2891,8 +3583,10 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
     );
   }
 
-  Widget _buildDefaultInstrumentLogo() {
-    return _buildSymbolMonogram('NSE', size: 32);
+  Widget _buildDefaultInstrumentLogo([String? symbol]) {
+    final clean = (symbol ?? '').toUpperCase();
+    final isBse = clean.contains('SENSEX') || clean.contains('BSE') || clean == 'BSESN';
+    return _buildSymbolMonogram(isBse ? 'BSE' : 'NSE', size: 32);
   }
 
   Widget _buildInstrumentGlowingBar(String selectedInstrument, bool isPositive) {
@@ -3042,14 +3736,13 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
             ),
             child: Row(
               children: [
+                // Logo (Tap to open Admin Centre)
                 GestureDetector(
                   onTap: () {
-                    if (!isSuperuser && !isAdmin) return;
                     HapticFeedback.lightImpact();
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanelScreen()));
                   },
                   onLongPress: () {
-                    if (!isSuperuser && !isAdmin) return;
                     HapticFeedback.heavyImpact();
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPanelScreen()));
                   },
@@ -3058,18 +3751,21 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                     child: Container(
                       width: 32,
                       height: 32,
-                      padding: const EdgeInsets.all(6), // Large padding to make the logo much smaller
+                      padding: const EdgeInsets.all(4),
+                      clipBehavior: Clip.antiAlias,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: const Color(0xFF202026), // Matches the dark background of the logo image
                         border: Border.all(color: Colors.white.withValues(alpha: 0.15), width: 1),
                       ),
-                      child: Image.asset(
-                        'assets/images/logo.png',
-                        fit: BoxFit.contain, // Fits the entire logo (bull + text) inside the padded circle
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          color: AppTheme.cardColor,
-                          child: const Icon(Icons.show_chart_rounded, color: AppTheme.primaryCyan, size: 16),
+                      child: ClipOval(
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.contain, // Fits the entire logo (bull + text) inside the padded circle
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: AppTheme.cardColor,
+                            child: const Icon(Icons.show_chart_rounded, color: AppTheme.primaryCyan, size: 16),
+                          ),
                         ),
                       ),
                     ),
@@ -3142,12 +3838,9 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       physics: const BouncingScrollPhysics(),
-                      reverse: true,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.end,
                         children: [
-
                           _buildIconButton(
                             icon: Icons.campaign_rounded,
                             color: AppTheme.goldColor,
@@ -3169,32 +3862,11 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                             },
                           ),
                           SizedBox(width: isCompact ? 4 : 6),
-                          _buildIconButton(
-                            icon: Icons.refresh_rounded,
-                            color: AppTheme.primaryCyan,
-                            tooltip: 'Refresh Data',
-                            isCompact: isCompact,
-                            onPressed: () async {
-                              HapticFeedback.mediumImpact();
-                              ScaffoldMessenger.of(context).removeCurrentSnackBar();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Row(
-                                    children: [
-                                      Icon(Icons.refresh_rounded, color: AppTheme.primaryCyan, size: 18),
-                                      SizedBox(width: 8),
-                                      Text('Refreshing orderflow & candles...'),
-                                    ],
-                                  ),
-                                  backgroundColor: AppTheme.cardColor,
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                              await ref.read(candleStreamProvider.notifier).refresh(clearCache: true);
-                              if (mounted) setState(() {});
-                            },
-                          ),
+
+                          // ── Top App Bar Bell Icon with numeric Badge (Replaced refresh icon!) ──
+                          _buildSignalBellButton(isCompact: isCompact),
                           SizedBox(width: isCompact ? 4 : 6),
+
                           _buildIconButton(
                             icon: Icons.search_rounded,
                             color: AppTheme.primaryCyan,
@@ -3218,8 +3890,8 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                               );
                             },
                           ),
-                          SizedBox(width: isCompact ? 4 : 6),
                           if (_activePriceAlerts.isNotEmpty) ...[
+                            SizedBox(width: isCompact ? 4 : 6),
                             _buildIconButton(
                               icon: Icons.notifications_off_rounded, 
                               color: AppTheme.goldColor,
@@ -3231,24 +3903,10 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                                 );
                               }
                             ),
-                            SizedBox(width: isCompact ? 4 : 6),
                           ],
                           if (isAdmin || isSuperuser) ...[
-                            _buildIconButton(
-                              icon: Icons.admin_panel_settings_rounded,
-                              color: AppTheme.goldColor,
-                              tooltip: 'Admin Centre',
-                              isCompact: isCompact,
-                              onPressed: () {
-                                HapticFeedback.lightImpact();
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(builder: (_) => const AdminPanelScreen()),
-                                );
-                              },
-                            ),
-                            SizedBox(width: isCompact ? 4 : 6),
                             if (!isReplaying) ...[
+                              SizedBox(width: isCompact ? 4 : 6),
                               _buildIconButton(
                                 icon: Icons.history_toggle_off_rounded,
                                 color: AppTheme.primaryCyan,
@@ -3256,16 +3914,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                                 isCompact: isCompact,
                                 onPressed: () => _selectReplayDate(context),
                               ),
-                              SizedBox(width: isCompact ? 4 : 6),
                             ],
-                            _buildIconButton(
-                              icon: Icons.auto_awesome_rounded,
-                              color: AppTheme.goldColor,
-                              tooltip: 'Auto-Inject Day Swings (Promo)',
-                              isCompact: isCompact,
-                              onPressed: _handleAutoInjectDaySwings,
-                            ),
-                            SizedBox(width: isCompact ? 4 : 6),
                           ],
                         ],
                       ),
@@ -3344,7 +3993,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
           child: Padding(
             padding: const EdgeInsets.all(2.0),
             child: Image.asset(
-              StockLogos.localAssets[cleanSymbol]!,
+              StockLogos.localAssets[cleanSymbol] ?? '',
               fit: BoxFit.contain,
               errorBuilder: (context, error, stackTrace) => _buildFallbackGradientLogo(symbol, size),
             ),
@@ -3861,7 +4510,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
         // First candle of a new session — show date label
         axisLabels.add(intl.DateFormat('dd MMM').format(c.timeStart));
       } else {
-        axisLabels.add(intl.DateFormat('hh:mm').format(c.timeStart));
+        axisLabels.add(intl.DateFormat('HH:mm').format(c.timeStart));
       }
       prevDayKey = dayKey;
     }
@@ -3895,8 +4544,20 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
 
       final visibleViewportCandles = candles.sublist(startIdx, endIdx + 1);
       if (visibleViewportCandles.isNotEmpty) {
-        double vMin = visibleViewportCandles.map((c) => c.low.toDouble()).reduce(math.min);
-        double vMax = visibleViewportCandles.map((c) => c.high.toDouble()).reduce(math.max);
+        // Robust median filter: guard against corrupt spikes or orphan synthetic candles
+        final sortedCloses = visibleViewportCandles.map((c) => c.close.toDouble()).toList()..sort();
+        final double medianClose = sortedCloses[sortedCloses.length ~/ 2];
+
+        // Filter out extreme price outliers (deviating > 3.0% from viewport median) for Y-axis scaling
+        final cleanCandles = visibleViewportCandles.where((c) {
+          if (medianClose <= 0) return true;
+          final double dev = ((c.close - medianClose) / medianClose).abs();
+          return dev < 0.03;
+        }).toList();
+
+        final activeCandles = cleanCandles.isNotEmpty ? cleanCandles : visibleViewportCandles;
+        double vMin = activeCandles.map((c) => c.low.toDouble()).reduce(math.min);
+        double vMax = activeCandles.map((c) => c.high.toDouble()).reduce(math.max);
         
         // Always include live price in Y-axis bounds if the live candle is in viewport
         final bool isLiveVisible = (endIdx >= candles.length - 1);
@@ -3943,8 +4604,8 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                 setState(() => _chartHeight = constraints.maxHeight);
               }
               if (_autoScroll && _xAxisController != null && computedXMin != null && computedXMax != null) {
-                _xAxisController!.visibleMinimum = computedXMin;
-                _xAxisController!.visibleMaximum = computedXMax;
+                _xAxisController?.visibleMinimum = computedXMin;
+                _xAxisController?.visibleMaximum = computedXMax;
               }
             }
           });
@@ -4178,17 +4839,200 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
         trackballBehavior: TrackballBehavior(
           enable: true,
           activationMode: ActivationMode.singleTap,
-          tooltipDisplayMode: TrackballDisplayMode.groupAllPoints,
+          tooltipDisplayMode: TrackballDisplayMode.floatAllPoints,
           lineType: TrackballLineType.vertical,
-          lineColor: Colors.white.withValues(alpha: 0.2),
-          lineWidth: 0.5,
+          lineColor: Colors.white.withValues(alpha: 0.25),
+          lineWidth: 1.0,
           lineDashArray: const [4, 4],
           markerSettings: const TrackballMarkerSettings(markerVisibility: TrackballVisibilityMode.visible),
-          tooltipSettings: const InteractiveTooltip(
-            enable: true,
-            color: AppTheme.cardColor,
-            textStyle: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.w900),
-          ),
+          builder: (BuildContext context, TrackballDetails trackballDetails) {
+            // Only build tooltip for CandleSeries (skip seriesIndex == 0 which is Volume ColumnSeries) to avoid duplicate boxes
+            if (trackballDetails.seriesIndex == 0) {
+              return const SizedBox.shrink();
+            }
+
+            final int? idx = trackballDetails.pointIndex;
+            if (idx == null || idx < 0 || idx >= candles.length) {
+              return const SizedBox.shrink();
+            }
+            final c = candles[idx];
+            final double open = c.open.toDouble();
+            final double high = c.high.toDouble();
+            final double low = c.low.toDouble();
+            final double close = c.close.toDouble();
+            final double change = close - open;
+            final double pctChange = open != 0 ? (change / open) * 100 : 0.0;
+            final bool isBull = close >= open;
+            final Color candleColor = isBull ? const Color(0xFF00FF41) : const Color(0xFFFF3B30);
+
+            final activeKey = _findActiveOrderflowKey(c);
+            final ofData = activeKey != null ? orderflowData[activeKey] : null;
+            final int buyers = ofData != null ? _parseNum(ofData['buyerCount']).toInt() : 0;
+            final int sellers = ofData != null ? _parseNum(ofData['sellerCount']).toInt() : 0;
+            final String rawTag = ofData != null ? (ofData['customTag'] as String? ?? '') : '';
+            final String tag = (rawTag.toUpperCase().contains('VOLATIL') || rawTag.toUpperCase().contains('BREAKDOWN') || rawTag.toUpperCase().contains('BREAKOUT'))
+                ? (buyers >= sellers ? 'BUY' : 'SELL')
+                : rawTag;
+
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0F1420).withValues(alpha: 0.96),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.4), width: 1.2),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.7),
+                    blurRadius: 16,
+                    spreadRadius: 2,
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: candleColor,
+                          boxShadow: [
+                            BoxShadow(color: candleColor.withValues(alpha: 0.6), blurRadius: 4),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        intl.DateFormat('dd MMM, HH:mm').format(c.timeStart),
+                        style: const TextStyle(
+                          color: AppTheme.primaryCyan,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Table(
+                    defaultColumnWidth: const IntrinsicColumnWidth(),
+                    children: [
+                      TableRow(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8, bottom: 3),
+                            child: Text('Open', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: Text(open.toStringAsFixed(1), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w900, fontFamily: 'monospace')),
+                          ),
+                        ],
+                      ),
+                      TableRow(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8, bottom: 3),
+                            child: Text('High', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: Text(high.toStringAsFixed(1), style: const TextStyle(color: Color(0xFF00FF41), fontSize: 11, fontWeight: FontWeight.w900, fontFamily: 'monospace')),
+                          ),
+                        ],
+                      ),
+                      TableRow(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8, bottom: 3),
+                            child: Text('Low', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: Text(low.toStringAsFixed(1), style: const TextStyle(color: Color(0xFFFF3B30), fontSize: 11, fontWeight: FontWeight.w900, fontFamily: 'monospace')),
+                          ),
+                        ],
+                      ),
+                      TableRow(
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.only(right: 8, bottom: 3),
+                            child: Text('Close', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 3),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(close.toStringAsFixed(1), style: TextStyle(color: candleColor, fontSize: 11, fontWeight: FontWeight.w900, fontFamily: 'monospace')),
+                                const SizedBox(width: 6),
+                                Text(
+                                  '(${change >= 0 ? '+' : ''}${change.toStringAsFixed(1)} / ${pctChange.toStringAsFixed(2)}%)',
+                                  style: TextStyle(color: candleColor, fontSize: 9.5, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (c.volume > 0)
+                        TableRow(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(right: 8, bottom: 3),
+                              child: Text('Volume', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 3),
+                              child: Text(_formatNumber(c.volume), style: const TextStyle(color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.bold, fontFamily: 'monospace')),
+                            ),
+                          ],
+                        ),
+                      if (buyers > 0 || sellers > 0)
+                        TableRow(
+                          children: [
+                            const Padding(
+                              padding: EdgeInsets.only(right: 8, bottom: 3),
+                              child: Text('Orderflow', style: TextStyle(color: Colors.white54, fontSize: 10, fontWeight: FontWeight.bold)),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 3),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('${_formatNumber(buyers)} B', style: const TextStyle(color: Color(0xFF00FF41), fontSize: 10, fontWeight: FontWeight.bold)),
+                                  const Text(' / ', style: TextStyle(color: Colors.white24, fontSize: 10)),
+                                  Text('${_formatNumber(sellers)} S', style: const TextStyle(color: Color(0xFFFF3B30), fontSize: 10, fontWeight: FontWeight.bold)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                  if (tag.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        tag,
+                        style: const TextStyle(color: AppTheme.goldColor, fontSize: 9, fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
         ),
         
         crosshairBehavior: CrosshairBehavior(
@@ -4227,12 +5071,15 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
             ...candles.where((c) {
               final String? activeKey = _findActiveOrderflowKey(c);
               if (activeKey == null) return false;
-              final data = orderflowData[activeKey]!;
-              final injectedBy = data['injectedBy'] as String?;
-              return injectedBy != null && injectedBy.isNotEmpty;
+              final data = orderflowData[activeKey];
+              if (data == null) return false;
+              final injectedBy = (data['injectedBy'] ?? data['updatedBy'])?.toString();
+              final buy = _parseNum(data['buyerCount']).toInt();
+              final sell = _parseNum(data['sellerCount']).toInt();
+              return (injectedBy != null && injectedBy.isNotEmpty) || buy > 0 || sell > 0;
             }).map((c) {
               final String? activeKey = _findActiveOrderflowKey(c) ?? c.candleKey;
-              final data = orderflowData[activeKey]!;
+              final data = orderflowData[activeKey] ?? {};
               final int buy = _parseNum(data['buyerCount']).toInt();
               final int sell = _parseNum(data['sellerCount']).toInt();
               final isBuyer = buy > sell;
@@ -4248,9 +5095,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
             }),
           ],
           interactiveTooltip: const InteractiveTooltip(
-            enable: true,
-            color: AppTheme.primaryCyan,
-            textStyle: TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.w900),
+            enable: false,
           ),
           axisLabelFormatter: (AxisLabelRenderDetails details) {
             // Primary: use sequential index to look up pre-built label
@@ -4259,7 +5104,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
               return ChartAxisLabel(axisLabels[index], details.textStyle);
             }
             // Fallback: details.text may contain the raw candleKey (timestamp ms string)
-            // Parse it and format as hh:mm a so users never see raw epoch numbers
+            // Parse it and format as HH:mm so users never see raw epoch numbers
             final rawText = details.text;
             if (rawText.isNotEmpty) {
               String cleanText = rawText.contains('_') ? rawText.split('_').last : rawText;
@@ -4269,7 +5114,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                 if (ms < 10000000000) ms *= 1000;
                 final dt = DateTime.fromMillisecondsSinceEpoch(ms).toLocal();
                 return ChartAxisLabel(
-                  intl.DateFormat('hh:mm').format(dt),
+                  intl.DateFormat('HH:mm').format(dt),
                   details.textStyle,
                 );
               }
@@ -4350,7 +5195,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
           )
         ],
         
-        series: <CartesianSeries<dynamic, String>>[
+        series: <CartesianSeries>[
           ColumnSeries<CandleModel, String>(
             name: 'Volume',
             dataSource: candles,
@@ -4426,7 +5271,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
             bullColor: AppTheme.bullColor,
             bearColor: AppTheme.bearColor,
             enableSolidCandles: true,
-            borderWidth: ((_xVisibleMax != null && _xVisibleMin != null && (_xVisibleMax! - _xVisibleMin!) > 35) ? 0.7 : 1.2),
+            borderWidth: ((_xVisibleMax != null && _xVisibleMin != null && ((_xVisibleMax ?? 0) - (_xVisibleMin ?? 0)) > 35) ? 0.7 : 1.2),
             width: 0.85,
             animationDuration: 0,
             spacing: 0.05, 
@@ -4762,7 +5607,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                   _isAdminOnlySelected = orderflowData[activeKey]!['adminOnly'] ?? false;
                   _isTrapSelected = orderflowData[activeKey]!['isTrap'] ?? false;
                   _isLiquidationSelected = orderflowData[activeKey]!['isLiquidation'] ?? false;
-                  _selectedBubbleScale = (orderflowData[activeKey]!['bubbleScale'] as num?)?.toDouble() ?? 5.0;
+                  _selectedBubbleScale = (orderflowData[activeKey]!['bubbleScale'] as num?)?.toDouble() ?? 3.0;
                   _selectedPulseSpeed = (orderflowData[activeKey]!['pulseSpeed'] as num?)?.toDouble() ?? 1.0;
                   _selectedBubbleOpacity = (orderflowData[activeKey]!['bubbleOpacity'] as num?)?.toDouble() ?? 0.65;
                 } else {
@@ -4773,7 +5618,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                   _isAdminOnlySelected = false;
                   _isTrapSelected = false;
                   _isLiquidationSelected = false;
-                  _selectedBubbleScale = 5.0;
+                  _selectedBubbleScale = 3.0;
                   _selectedPulseSpeed = 1.0;
                   _selectedBubbleOpacity = 0.65;
                 }
@@ -4944,33 +5789,36 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                       isPositive,
                     ),
                     const SizedBox(width: 12),
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: () => _openStockSearch(isIndexOnly: false),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0F1524).withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: AppTheme.primaryCyan.withValues(alpha: 0.25),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppTheme.primaryCyan.withValues(alpha: 0.15),
-                                blurRadius: 12,
-                                spreadRadius: 1.5,
+                    Tooltip(
+                      message: 'Search & Switch Instrument',
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _openStockSearch(isIndexOnly: false),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF0F1524).withValues(alpha: 0.6),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: AppTheme.primaryCyan.withValues(alpha: 0.25),
+                                width: 1.5,
                               ),
-                            ],
-                          ),
-                          child: const Icon(
-                            Icons.search_rounded,
-                            color: Colors.white,
-                            size: 20,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppTheme.primaryCyan.withValues(alpha: 0.15),
+                                  blurRadius: 12,
+                                  spreadRadius: 1.5,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.search_rounded,
+                              color: Colors.white,
+                              size: 20,
+                            ),
                           ),
                         ),
                       ),
@@ -5058,7 +5906,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
 
     final double visibleCandlesCount;
     if (_xVisibleMin != null && _xVisibleMax != null) {
-      visibleCandlesCount = _xVisibleMax! - _xVisibleMin!;
+      visibleCandlesCount = (_xVisibleMax ?? 0) - (_xVisibleMin ?? 0);
     } else {
       visibleCandlesCount = 25.0;
     }
@@ -5079,9 +5927,9 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
     for (final candle in visibleCandles) {
       if (!candleIndexMap.containsKey(candle.candleKey)) continue;
 
-      final int candleIdx = candleIndexMap[candle.candleKey]!;
+      final int candleIdx = candleIndexMap[candle.candleKey] ?? 0;
       if (_xVisibleMin != null && _xVisibleMax != null) {
-        if (candleIdx < _xVisibleMin! - 1.5 || candleIdx > _xVisibleMax! + 1.5) continue;
+        if (candleIdx < (_xVisibleMin ?? 0) - 1.5 || candleIdx > (_xVisibleMax ?? 0) + 1.5) continue;
       }
 
       final String? activeKey = _findActiveOrderflowKey(candle);
@@ -5106,17 +5954,12 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
       double adminPulseSpeed = 1.0;
 
       // 1. Check for Admin Data in Firestore
-      if (activeKey != null) {
-        final data = orderflowData[activeKey]!;
+      if (activeKey != null && orderflowData.containsKey(activeKey)) {
+        final data = orderflowData[activeKey] ?? {};
         final expiryTime = _parseNum(data['expiryTime']).toInt();
         if (expiryTime > 0 && DateTime.now().millisecondsSinceEpoch > expiryTime) {
           // Skip expired data
         } else {
-          // STRICT CHECK: Only data manually injected by admin (has 'injectedBy') should glow
-          // This prevents automated/legacy data from triggering the admin glow effect
-          final injectedBy = data['injectedBy'] as String?;
-          hasAdminData = injectedBy != null && injectedBy.isNotEmpty;
-          
           num safeParse(dynamic val) {
              if (val is num) return val;
              if (val is String) return num.tryParse(val) ?? 0;
@@ -5125,8 +5968,10 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
 
           buyerCount = safeParse(data['buyerCount']).toInt();
           sellerCount = safeParse(data['sellerCount']).toInt();
+          final injectedBy = (data['injectedBy'] ?? data['updatedBy'])?.toString();
+          hasAdminData = (injectedBy != null && injectedBy.isNotEmpty) || buyerCount > 0 || sellerCount > 0 || candle.isInjected;
           rangeFactor = safeParse(data['bubbleScale']).toDouble();
-          if (rangeFactor == 0) rangeFactor = 5.0;
+          if (rangeFactor == 0) rangeFactor = 3.0;
 
           isBigSignal = data['isBigSignal'] as bool? ?? false;
           isInstitutional = data['isInstitutional'] as bool? ?? false;
@@ -5139,6 +5984,11 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
           adminGlow = safeParse(data['bubbleGlow']).toDouble();
           adminShowLabel = data['showLabel'] as bool? ?? true;
           adminTag = data['customTag'] as String? ?? "";
+          if (adminTag.toUpperCase().contains('VOLATIL') || adminTag.toUpperCase().contains('BREAKDOWN') || adminTag.toUpperCase().contains('BREAKOUT')) {
+            final sym = (data['symbol'] as String? ?? '').replaceAll('BANK', '').replaceAll('TECH', '').replaceAll('50', '');
+            final bool isBuy = buyerCount >= sellerCount;
+            adminTag = sym.isNotEmpty ? '$sym ${isBuy ? "BUY" : "SELL"}' : (isBuy ? "BUY" : "SELL");
+          }
           
           adminPulseSpeed = safeParse(data['pulseSpeed']).toDouble();
           if (adminPulseSpeed == 0) adminPulseSpeed = 1.0;
@@ -5217,22 +6067,30 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
         }
       }
 
-      // --- RENDER GLOW OVERLAY (Exact Center of Candlestick) ---
-      // Always centered on the candlestick (no offset or shifting to neighboring candles)
+      // --- RENDER GLOW OVERLAY ---
+      // For Admin-injected data:
+      //   - Sell order / sell signal: display at top of candlestick (candle.high)
+      //   - Buy order / buy signal: display at bottom of candlestick (candle.low)
+      // For Simulated filler data:
+      //   - Centered on the candlestick ((candle.open + candle.close) / 2)
       if (buyerCount > 0 || sellerCount > 0) {
          final isBuyerDominant = buyerCount > sellerCount;
          final dominantCount = isBuyerDominant ? buyerCount : sellerCount;
          
-         // Position volume pill in the middle of every candlestick
+         // Position volume pill in the middle of simulated candlesticks,
+         // or on top/bottom of candlestick for admin injected data
          final pillY = (candle.open + candle.close) / 2;
+         final targetY = hasAdminData 
+             ? (isBuyerDominant ? candle.low : candle.high) 
+             : pillY;
          const verticalAlign = ChartAlignment.center;
          
          if (_yVisibleMin != null && _yVisibleMax != null) {
-           if (pillY < _yVisibleMin! - 10.0 || pillY > _yVisibleMax! + 10.0) continue;
+           if (targetY < (_yVisibleMin ?? 0) - 20.0 || targetY > (_yVisibleMax ?? 0) + 20.0) continue;
          }
          
          if (hasAdminData) {
-            // Admin Data: Show compact volume pill / AdminGlowingOrb directly on the target candlestick
+            // Admin Data: Show compact volume pill / AdminGlowingOrb directly on candle top (SELL) or bottom (BUY)
             Widget glowBubble = _buildGlowOverlay(
               count: dominantCount,
               isBuyer: isBuyerDominant,
@@ -5269,20 +6127,20 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                  ),
                  coordinateUnit: CoordinateUnit.point,
                  x: candle.candleKey,
-                 y: pillY,
+                 y: targetY,
                  verticalAlignment: verticalAlign,
                  horizontalAlignment: ChartAlignment.center,
               ));
             }
           } else {
-            // Simulated Data: Single compact volume pill
+            // Simulated Data: Single compact volume pill on every candle
             if (shouldShowPill) {
               Widget glowBubble = _buildGlowOverlay(
                 count: dominantCount,
                 isBuyer: isBuyerDominant,
                 isHeavy: isHeavy,
-                scale: pillScale,
-                opacity: 0.65,
+                scale: pillScale * 0.9,
+                opacity: 0.75,
                 glow: 0.0,
                 showLabel: shouldShowLabel,
                 isImbalance: isImbalance,
@@ -6369,7 +7227,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
 
               _isTrapSelected = false;
               _isLiquidationSelected = false;
-              _selectedBubbleScale = 5.0;
+              _selectedBubbleScale = 3.0;
               _selectedPulseSpeed = 1.0;
               _selectedBubbleOpacity = 0.65;
               _autoFadeMinutes = 0;
@@ -6487,13 +7345,13 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
   }
 
   Widget _buildScaleSelector() {
-    final scales = [1.0, 5.0, 10.0, 20.0, 30.0, 50.0];
+    final scales = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0];
     
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'BUBBLE SIZE (POINTS)',
+          'BALL SIZE (1X - 9X)',
           style: TextStyle(color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 1),
         ),
         const SizedBox(height: 12),
@@ -6514,7 +7372,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
                   border: Border.all(color: _selectedBubbleScale == s ? AppTheme.primaryCyan : Colors.white12),
                 ),
                 child: Text(
-                  '${s.toInt()} PT',
+                  '${s.toInt()}X',
                   style: TextStyle(
                     color: _selectedBubbleScale == s ? AppTheme.primaryCyan : Colors.white70,
                     fontSize: 9, 
@@ -7132,7 +7990,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
         isMediumSignal: false,
         isTrap: false,
         isLiquidation: false,
-        bubbleScale: 5.0,
+        bubbleScale: _selectedBubbleScale,
         pulseSpeed: 1.0,
         bubbleOpacity: 0.95,
         footprint: {
@@ -7162,7 +8020,7 @@ class _ChartScreenState extends ConsumerState<ChartScreen> with TickerProviderSt
         isMediumSignal: false,
         isTrap: false,
         isLiquidation: false,
-        bubbleScale: 5.0,
+        bubbleScale: _selectedBubbleScale,
         pulseSpeed: 1.0,
         bubbleOpacity: 0.95,
         footprint: {
@@ -8730,13 +9588,8 @@ class _AdminGlowingOrbState extends State<AdminGlowingOrb> with SingleTickerProv
 
   @override
   Widget build(BuildContext context) {
-    // Normalize the scale factor: 5.0 maps to 1.0. Clamp between 0.2 (very small) and 4.0 (very large).
-    final double baseS = (widget.scale / 5.0).clamp(0.2, 4.0);
-    final bool isPc = kIsWeb || 
-                      defaultTargetPlatform == TargetPlatform.windows || 
-                      defaultTargetPlatform == TargetPlatform.macOS || 
-                      defaultTargetPlatform == TargetPlatform.linux;
-    final double s = isPc ? baseS * 1.6 : baseS;
+    // Fully adjustable ball scale directly governed by admin slider (widget.scale / 3.0)
+    final double s = (widget.scale / 3.0).clamp(0.2, 5.0);
     
     Color baseColor = widget.isBuyer ? const Color(0xFF00E676) : const Color(0xFFFF5252);
     
@@ -8746,23 +9599,35 @@ class _AdminGlowingOrbState extends State<AdminGlowingOrb> with SingleTickerProv
       baseColor = Colors.purpleAccent;
     }
 
-    String tagText = widget.customTag.isNotEmpty 
-        ? widget.customTag 
-        : (widget.isBuyer ? "BUY" : "SELL");
+    String tagText = widget.isBuyer ? "BUY" : "SELL";
+    if (widget.customTag.isNotEmpty) {
+      final tagUpper = widget.customTag.toUpperCase();
+      if (tagUpper.contains("VOLATIL") || 
+          tagUpper.contains("BREAKDOWN") || 
+          tagUpper.contains("BREAKOUT")) {
+        tagText = widget.isBuyer ? "BUY" : "SELL";
+      } else {
+        tagText = widget.customTag;
+      }
+    }
+
+    // Format count with thousand commas for instant, effortless legibility
+    final String countFormatted = intl.NumberFormat('#,###').format(widget.count);
 
     return AnimatedBuilder(
       animation: _pulseAnimation,
       builder: (context, child) {
         final pulse = _pulseAnimation.value;
+        final double orbSize = 220.0 * s;
         return SizedBox(
-          width: 240 * s,
-          height: 240 * s,
+          width: orbSize,
+          height: orbSize,
           child: Stack(
             alignment: Alignment.center,
             children: [
               // 1. Concentric rings expanding outwards
               CustomPaint(
-                size: Size(240 * s, 240 * s),
+                size: Size(orbSize, orbSize),
                 painter: ConcentricRingsPainter(
                   color: baseColor,
                   scale: s,
@@ -8772,8 +9637,8 @@ class _AdminGlowingOrbState extends State<AdminGlowingOrb> with SingleTickerProv
               
               // 2a. Large glowing halo with radial gradient and shadow
               Container(
-                width: 140 * s * pulse,
-                height: 140 * s * pulse,
+                width: 140.0 * s * pulse,
+                height: 140.0 * s * pulse,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: RadialGradient(
@@ -8788,8 +9653,8 @@ class _AdminGlowingOrbState extends State<AdminGlowingOrb> with SingleTickerProv
                   boxShadow: [
                     BoxShadow(
                       color: baseColor.withValues(alpha: 0.55),
-                      blurRadius: 30 * s,
-                      spreadRadius: 4 * s,
+                      blurRadius: 28.0 * s,
+                      spreadRadius: 3.5 * s,
                     ),
                   ],
                 ),
@@ -8797,20 +9662,20 @@ class _AdminGlowingOrbState extends State<AdminGlowingOrb> with SingleTickerProv
               
               // 2b. Solid central core ball for distinct visibility
               Container(
-                width: 85 * s * pulse,
-                height: 85 * s * pulse,
+                width: 85.0 * s * pulse,
+                height: 85.0 * s * pulse,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: baseColor.withValues(alpha: 0.95),
                   border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.4),
-                    width: 1.0 * s,
+                    color: Colors.white.withValues(alpha: 0.6),
+                    width: (1.5 * s).clamp(0.8, 3.5),
                   ),
                   boxShadow: [
                     BoxShadow(
-                      color: baseColor.withValues(alpha: 0.7),
-                      blurRadius: 12 * s,
-                      spreadRadius: 2 * s,
+                      color: baseColor.withValues(alpha: 0.75),
+                      blurRadius: 16.0 * s,
+                      spreadRadius: 2.5 * s,
                     ),
                   ],
                 ),
@@ -8821,21 +9686,24 @@ class _AdminGlowingOrbState extends State<AdminGlowingOrb> with SingleTickerProv
                 mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Tag Chip (e.g. BUY / SELL)
+                  // Tag Chip (e.g. BUY / SELL / HDFC SELL) - adjustable size
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 10 * s, vertical: 3 * s),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: (8.0 * s).clamp(5.0, 24.0),
+                      vertical: (2.5 * s).clamp(2.0, 8.0),
+                    ),
                     decoration: BoxDecoration(
-                      color: baseColor.withValues(alpha: 0.25),
-                      borderRadius: BorderRadius.circular(4 * s),
+                      color: const Color(0xFF090D16),
+                      borderRadius: BorderRadius.circular((5.0 * s).clamp(3.0, 12.0)),
                       border: Border.all(
-                        color: baseColor.withValues(alpha: 0.85),
-                        width: 1.0 * s,
+                        color: baseColor,
+                        width: (1.2 * s).clamp(0.8, 2.5),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: baseColor.withValues(alpha: 0.3),
-                          blurRadius: 4 * s,
-                          spreadRadius: 1 * s,
+                          color: baseColor.withValues(alpha: 0.5),
+                          blurRadius: 6.0 * s,
+                          spreadRadius: 1.0 * s,
                         ),
                       ],
                     ),
@@ -8843,38 +9711,52 @@ class _AdminGlowingOrbState extends State<AdminGlowingOrb> with SingleTickerProv
                       tagText,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 9.0 * s,
+                        fontSize: (11.0 * s).clamp(7.0, 20.0),
                         fontWeight: FontWeight.w900,
-                        letterSpacing: 1.0 * s,
+                        letterSpacing: 1.0,
                       ),
                     ),
                   ),
-                  SizedBox(height: 3 * s),
-                  // Black Numeric Box
+                  SizedBox(height: 3.0 * s),
+                  // High-Contrast Large Numeric Box - adjustable size
                   Container(
-                    padding: EdgeInsets.symmetric(horizontal: 12 * s, vertical: 6 * s),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: (12.0 * s).clamp(6.0, 30.0),
+                      vertical: (4.5 * s).clamp(2.5, 12.0),
+                    ),
                     decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(6 * s),
+                      color: const Color(0xFF090D16),
+                      borderRadius: BorderRadius.circular((7.0 * s).clamp(3.0, 14.0)),
                       border: Border.all(
-                        color: baseColor.withValues(alpha: 0.3),
-                        width: 1.0 * s,
+                        color: baseColor,
+                        width: (1.8 * s).clamp(1.0, 3.5),
                       ),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.5),
-                          blurRadius: 8 * s,
-                          offset: Offset(0, 2 * s),
+                          color: baseColor.withValues(alpha: 0.5),
+                          blurRadius: 12.0 * s,
+                          spreadRadius: 2.0 * s,
+                        ),
+                        const BoxShadow(
+                          color: Colors.black87,
+                          blurRadius: 10,
+                          offset: Offset(0, 3),
                         ),
                       ],
                     ),
                     child: Text(
-                      widget.count.toString(),
+                      countFormatted,
+                      maxLines: 1,
+                      softWrap: false,
                       style: TextStyle(
                         color: Colors.white,
-                        fontSize: 16.0 * s,
+                        fontSize: (20.0 * s).clamp(9.0, 42.0),
                         fontWeight: FontWeight.w900,
-                        fontFamily: 'monospace',
+                        letterSpacing: 0.8,
+                        shadows: const [
+                          Shadow(color: Colors.black, blurRadius: 4, offset: Offset(0, 1)),
+                          Shadow(color: Colors.black87, blurRadius: 8),
+                        ],
                       ),
                     ),
                   ),
@@ -10084,68 +10966,78 @@ class PreMarketBiasDashboard extends StatefulWidget {
   State<PreMarketBiasDashboard> createState() => _PreMarketBiasDashboardState();
 }
 
-class _PreMarketBiasDashboardState extends State<PreMarketBiasDashboard> {
+class _PreMarketBiasDashboardState extends State<PreMarketBiasDashboard> with SingleTickerProviderStateMixin {
   bool _isExpanded = false;
-  
-  double _giftNifty = 24185.50;
-  double _giftNiftyChange = 112.50;
-  double _giftNiftyPct = 0.47;
-  String _expectedOpen = "GAP UP (+90 to +110 points)";
-  String _fiiFlow = "+₹1,482.50 Cr";
-  String _diiFlow = "-₹328.10 Cr";
-  Map<String, String> _globalFutures = {};
+  bool _isLoading = false;
+
+  double _giftNifty = 22615.0;
+  double _giftNiftyChange = -210.0;
+  double _giftNiftyPct = -0.92;
+  String _expectedOpen = "GAP DOWN (-190 to -140 points)";
+  String _expectedOpenType = "GAP DOWN";
+  double _fiiNet = -5353.22;
+  double _diiNet = 5189.02;
+  String _fiiDiiDate = "28-Sep-2026";
+  Map<String, String> _globalFutures = {
+    'DOW FUT': '-122 (-0.24%)',
+    'NASDAQ FUT': '-132.3 (-0.43%)',
+    'DAX': '-34.2 (-0.13%)',
+    'NIKKEI': '-936 (-1.42%)',
+  };
   String _lastUpdatedTime = "";
+
+  late AnimationController _spinController;
 
   @override
   void initState() {
     super.initState();
-    _refreshPreMarketBias();
+    _spinController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    );
+    _loadPreMarketBias(forceRefresh: false);
+  }
+
+  @override
+  void dispose() {
+    _spinController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadPreMarketBias({bool forceRefresh = false}) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+    _spinController.repeat();
+
+    try {
+      final data = await PreMarketBiasService().getPreMarketBias(forceRefresh: forceRefresh);
+      if (mounted) {
+        setState(() {
+          _giftNifty = data.giftNifty;
+          _giftNiftyChange = data.giftNiftyChange;
+          _giftNiftyPct = data.giftNiftyPct;
+          _expectedOpen = data.expectedOpen;
+          _expectedOpenType = data.expectedOpenType;
+          _fiiNet = data.fiiNet;
+          _diiNet = data.diiNet;
+          _fiiDiiDate = data.fiiDiiDate;
+          _globalFutures = data.globalFutures;
+          _lastUpdatedTime = intl.DateFormat('dd-MM-yyyy • hh:mm a').format(data.lastUpdated);
+        });
+      }
+    } catch (e) {
+      debugPrint('[PreMarketBias] Error loading data: $e');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        _spinController.stop();
+        _spinController.reset();
+      }
+    }
   }
 
   void _refreshPreMarketBias() {
-    final now = DateTime.now();
-    final seed = now.year * 10000 + now.month * 100 + now.day;
-    final rng = math.Random(seed);
-
-    final bool isBullishDay = (seed % 3) != 0;
-
-    if (isBullishDay) {
-      _giftNiftyChange = 60.0 + (rng.nextDouble() * 95.0);
-      _giftNiftyPct = (_giftNiftyChange / 24100.0) * 100;
-      _giftNifty = 24185.50 + _giftNiftyChange;
-      final int minPts = _giftNiftyChange.toInt() - 15;
-      final int maxPts = _giftNiftyChange.toInt() + 15;
-      _expectedOpen = "GAP UP (+$minPts to +$maxPts points)";
-      _fiiFlow = "+₹${(1000 + rng.nextDouble() * 1500).toStringAsFixed(2)} Cr";
-      _diiFlow = "-₹${(100 + rng.nextDouble() * 500).toStringAsFixed(2)} Cr";
-      _globalFutures = {
-        'DOW FUT': '+${(50 + rng.nextInt(120))} (0.${rng.nextInt(45)}%)',
-        'NASDAQ FUT': '+${(40 + rng.nextInt(90))} (0.${rng.nextInt(60)}%)',
-        'DAX': '+${(10 + rng.nextInt(40))} (0.${rng.nextInt(25)}%)',
-        'NIKKEI': '+${(180 + rng.nextInt(250))} (0.${rng.nextInt(90)}%)',
-      };
-    } else {
-      _giftNiftyChange = -(45.0 + (rng.nextDouble() * 80.0));
-      _giftNiftyPct = (_giftNiftyChange / 24100.0) * 100;
-      _giftNifty = 24185.50 + _giftNiftyChange;
-      final int minPts = _giftNiftyChange.toInt() - 15;
-      final int maxPts = _giftNiftyChange.toInt() + 15;
-      _expectedOpen = "GAP DOWN ($minPts to $maxPts points)";
-      _fiiFlow = "-₹${(800 + rng.nextDouble() * 1200).toStringAsFixed(2)} Cr";
-      _diiFlow = "+₹${(400 + rng.nextDouble() * 900).toStringAsFixed(2)} Cr";
-      _globalFutures = {
-        'DOW FUT': '-${(40 + rng.nextInt(90))} (-0.${rng.nextInt(35)}%)',
-        'NASDAQ FUT': '-${(30 + rng.nextInt(80))} (-0.${rng.nextInt(45)}%)',
-        'DAX': '-${(15 + rng.nextInt(35))} (-0.${rng.nextInt(20)}%)',
-        'NIKKEI': '-${(120 + rng.nextInt(200))} (-0.${rng.nextInt(70)}%)',
-      };
-    }
-
-    _lastUpdatedTime = intl.DateFormat('dd-MM-yyyy • 08:45 AM').format(now);
-
-    if (mounted) {
-      setState(() {});
-    }
+    _loadPreMarketBias(forceRefresh: true);
   }
 
   @override
@@ -10197,7 +11089,10 @@ class _PreMarketBiasDashboardState extends State<PreMarketBiasDashboard> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.refresh_rounded, color: AppTheme.primaryCyan, size: 16),
+                    icon: RotationTransition(
+                      turns: _spinController,
+                      child: const Icon(Icons.refresh_rounded, color: AppTheme.primaryCyan, size: 16),
+                    ),
                     onPressed: _refreshPreMarketBias,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
@@ -10233,10 +11128,15 @@ class _PreMarketBiasDashboardState extends State<PreMarketBiasDashboard> {
                             style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, fontFamily: 'monospace'),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            '+${_giftNiftyChange.toStringAsFixed(2)} (+${_giftNiftyPct.toStringAsFixed(2)}%)',
-                            style: const TextStyle(color: Color(0xFF00FF88), fontSize: 9, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
-                          ),
+                          Builder(builder: (context) {
+                            final isPos = _giftNiftyChange >= 0;
+                            final sign = isPos ? '+' : '';
+                            final color = isPos ? const Color(0xFF00FF88) : AppTheme.bearColor;
+                            return Text(
+                              '$sign${_giftNiftyChange.toStringAsFixed(2)} ($sign${_giftNiftyPct.toStringAsFixed(2)}%)',
+                              style: TextStyle(color: color, fontSize: 9, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                            );
+                          }),
                         ],
                       ),
                     ],
@@ -10248,18 +11148,33 @@ class _PreMarketBiasDashboardState extends State<PreMarketBiasDashboard> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text('EXPECTED OPEN', style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold)),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF00FF88).withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0xFF00FF88).withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          _expectedOpen,
-                          style: const TextStyle(color: Color(0xFF00FF88), fontSize: 8.5, fontWeight: FontWeight.w900, letterSpacing: 0.3),
-                        ),
-                      ),
+                      Builder(builder: (context) {
+                        Color openColor;
+                        if (_expectedOpenType == 'GAP UP' || _expectedOpen.contains('GAP UP')) {
+                          openColor = const Color(0xFF00FF88);
+                        } else if (_expectedOpenType == 'GAP DOWN' || _expectedOpen.contains('GAP DOWN')) {
+                          openColor = AppTheme.bearColor;
+                        } else {
+                          openColor = AppTheme.goldColor;
+                        }
+                        return Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: openColor.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(color: openColor.withValues(alpha: 0.3)),
+                          ),
+                          child: Text(
+                            _expectedOpen,
+                            style: TextStyle(
+                              color: openColor,
+                              fontSize: 8.5,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.3,
+                            ),
+                          ),
+                        );
+                      }),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -10268,13 +11183,26 @@ class _PreMarketBiasDashboardState extends State<PreMarketBiasDashboard> {
                   const SizedBox(height: 8),
                   
                   // FII / DII Flow
-                  const Text('FII / DII NET FLOW (PREV DAY)', style: TextStyle(color: Colors.white38, fontSize: 8.5, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                  Text(
+                    _fiiDiiDate.isNotEmpty
+                        ? 'FII / DII NET FLOW ($_fiiDiiDate)'
+                        : 'FII / DII NET FLOW (PREV DAY)',
+                    style: const TextStyle(color: Colors.white38, fontSize: 8.5, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                  ),
                   const SizedBox(height: 8),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildFlowRow('FII Buy', _fiiFlow, const Color(0xFF00FF88)),
-                      _buildFlowRow('DII Sell', _diiFlow, AppTheme.bearColor),
+                      _buildFlowRow(
+                        _fiiNet >= 0 ? 'FII Buy' : 'FII Sell',
+                        '${_fiiNet >= 0 ? '+' : '-'}₹${_fiiNet.abs().toStringAsFixed(2)} Cr',
+                        _fiiNet >= 0 ? const Color(0xFF00FF88) : AppTheme.bearColor,
+                      ),
+                      _buildFlowRow(
+                        _diiNet >= 0 ? 'DII Buy' : 'DII Sell',
+                        '${_diiNet >= 0 ? '+' : '-'}₹${_diiNet.abs().toStringAsFixed(2)} Cr',
+                        _diiNet >= 0 ? const Color(0xFF00FF88) : AppTheme.bearColor,
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),

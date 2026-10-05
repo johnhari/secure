@@ -1,8 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 /// Service for managing global app settings (sentiment, news ticker)
 class GlobalSettingsService {
-  static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static FirebaseFirestore? get _firestore => FirebaseFirestore.instance;
   static const String _collection = 'global_config';
   static const String _configDoc = 'active_configuration';
 
@@ -32,6 +33,9 @@ class GlobalSettingsService {
     String? broadcastMessage, /// Custom message broadcast to all users
     String? broadcastType, /// 'info' | 'warning' | 'error'
   }) async {
+    final fs = _firestore;
+    if (fs == null) return;
+
     final Map<String, dynamic> data = {
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -54,15 +58,24 @@ class GlobalSettingsService {
       data['broadcastTimestamp'] = DateTime.now().millisecondsSinceEpoch;
     }
 
-    await _firestore.collection(_collection).doc(_configDoc).set(data, SetOptions(merge: true));
+    await fs.collection(_collection).doc(_configDoc).set(data, SetOptions(merge: true));
   }
 
   /// Stream global configuration
   static Stream<Map<String, dynamic>> getConfigStream() {
-    return _firestore
+    final fs = _firestore;
+    if (fs == null) {
+      return Stream.value(<String, dynamic>{});
+    }
+
+    return fs
         .collection(_collection)
         .doc(_configDoc)
         .snapshots()
-        .map((snapshot) => snapshot.data() ?? {});
+        .map((snapshot) {
+          final data = snapshot.data();
+          if (data == null) return <String, dynamic>{};
+          return Map<String, dynamic>.from(data);
+        });
   }
 }

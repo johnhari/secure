@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../constants/app_constants.dart';
+import '../constants/nifty_stocks.dart';
 
 
 class NotificationService {
@@ -98,6 +99,16 @@ class NotificationService {
         return;
       }
 
+      // USER REQUIREMENT: Only index notifications are displayed on device.
+      // Stocks are routed exclusively to the in-app Bell icon.
+      final sym = message.data['symbol'] ?? message.data['instrument'] ?? '';
+      if (sym.isNotEmpty && !NiftyStocks.isIndex(sym.toString())) {
+        if (kDebugMode) {
+          print('[FCM] Suppressed notification for stock $sym (only index notifications permitted)');
+        }
+        return;
+      }
+
       if (notification != null) {
         _localNotifications.show(
           notification.hashCode,
@@ -131,12 +142,14 @@ class NotificationService {
     await saveTokenToFirestore();
     
     if (!kIsWeb) {
-      // Subscribe only to allowed instrument topics based on subscription type
-      final List<String> allowedTopics = isIndexOnly
-          ? ['alerts_nifty50', 'alerts_banknifty', 'alerts_finnifty', 'alerts_sensex']
-          : AppConstants.instruments
-              .map((i) => 'alerts_${i.toLowerCase()}')
-              .toList();
+      // Only index topics receive device push notifications; stocks update in-app bell.
+      final List<String> allowedTopics = [
+        'alerts_nifty50',
+        'alerts_banknifty',
+        'alerts_finnifty',
+        'alerts_sensex',
+        'alerts_midcapnifty',
+      ];
 
       for (final topic in allowedTopics) {
         try {
@@ -255,6 +268,15 @@ try {
   }) async {
     if (kIsWeb) return;
 
+    // USER REQUIREMENT: Only index notifications are permitted on desktop/OS.
+    // Stock signals are routed exclusively to the in-app Bell icon.
+    if (!NiftyStocks.isIndex(symbol)) {
+      if (kDebugMode) {
+        print('[NotificationService] Suppressing desktop notification for stock: $symbol (only indices get OS notifications)');
+      }
+      return;
+    }
+
     if (notificationId != null) {
       if (_shownWindowsNotificationKeys.contains(notificationId)) return;
       _shownWindowsNotificationKeys.add(notificationId);
@@ -270,7 +292,9 @@ try {
     String timeLabel = '';
     if (candleTime != null && candleTime > 0) {
       final actualMs = candleTime < 10000000000 ? candleTime * 1000 : candleTime;
-      final dt = DateTime.fromMillisecondsSinceEpoch(actualMs);
+      // Convert to IST (UTC+5:30)
+      final dt = DateTime.fromMillisecondsSinceEpoch(actualMs, isUtc: true)
+          .add(const Duration(hours: 5, minutes: 30));
       final hour = dt.hour.toString().padLeft(2, '0');
       final minute = dt.minute.toString().padLeft(2, '0');
       timeLabel = ' [$hour:$minute]';

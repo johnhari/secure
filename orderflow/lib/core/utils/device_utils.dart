@@ -29,8 +29,18 @@ class DeviceUtils {
       }
 
       if (defaultTargetPlatform == TargetPlatform.android) {
-        final androidInfo = await _deviceInfo.androidInfo;
-        _cachedDeviceId = androidInfo.id;
+        final prefs = await SharedPreferences.getInstance();
+        String? mobId = prefs.getString('mobile_device_uuid');
+        if (mobId == null) {
+          mobId = const Uuid().v4();
+          await prefs.setString('mobile_device_uuid', mobId);
+        }
+        try {
+          final androidInfo = await _deviceInfo.androidInfo;
+          _cachedDeviceId = 'android_${androidInfo.manufacturer}_${androidInfo.model}_$mobId';
+        } catch (_) {
+          _cachedDeviceId = 'android_$mobId';
+        }
         return _cachedDeviceId!;
       }
 
@@ -158,6 +168,28 @@ class DeviceUtils {
     } catch (_) {
       return 'Unknown Hardware';
     }
+  }
+
+  /// Returns true if running on a mobile OS (Android, iOS)
+  static bool isMobile() {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+  }
+
+  /// Returns true if running on a PC / Desktop / Web browser platform
+  static bool isPc() {
+    return !isMobile();
+  }
+
+  /// Device slot category: 'mobile' or 'pc'
+  static String getDeviceSlot() {
+    return isMobile() ? 'mobile' : 'pc';
+  }
+
+  /// User-friendly device category label
+  static String getDeviceTypeName() {
+    return isMobile() ? 'Mobile' : 'PC';
   }
 
   /// Clear cached values (call on sign-out)

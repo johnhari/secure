@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../datasources/authentication_datasource.dart';
 import '../../domain/entities/user_profile.dart';
@@ -7,7 +11,7 @@ import '../../core/constants/app_constants.dart';
 
 class AuthRepository {
   final AuthenticationDataSource _authDataSource;
-  final FirebaseFirestore _firestore;
+  final FirebaseFirestore? _firestore;
 
   AuthRepository({
     required AuthenticationDataSource authDataSource,
@@ -63,8 +67,13 @@ class AuthRepository {
     _authDataSource.setAdminMode(isAdmin);
   }
 
+  /// Set dual device (1 mobile + 1 pc) access mode
+  void setAllowDualDevice(bool allow) {
+    _authDataSource.setAllowDualDevice(allow);
+  }
+
   /// Set callback for session invalidation
-  void setSessionInvalidationCallback(void Function() callback) {
+  void setSessionInvalidationCallback(void Function(String reason) callback) {
     _authDataSource.setSessionInvalidationCallback(callback);
   }
 
@@ -75,12 +84,22 @@ class AuthRepository {
 
   /// Get current user profile
   Future<UserProfile?> getCurrentUserProfile() async {
-    final user = _authDataSource.getCurrentUser();
-    if (user == null) return null;
+    final uid = _authDataSource.lastLoggedInUid;
+    final email = _authDataSource.lastLoggedInEmail;
+    if (uid == null) return null;
+
+    final db = _firestore;
+    if (db == null) {
+      if (_authDataSource.lastIdToken != null) {
+        final profileFromRest = await _fetchUserProfileViaRest(uid, _authDataSource.lastIdToken!, email);
+        if (profileFromRest != null) return profileFromRest;
+      }
+      return null;
+    }
 
     try {
-      final doc = await _firestore.collection('users').doc(user.uid).get();
-      final isMasterAdmin = AppConstants.isMasterAdmin(user.email);
+      final doc = await db.collection('users').doc(uid).get();
+      final isMasterAdmin = AppConstants.isMasterAdmin(email);
 
       if (doc.exists && doc.data() != null) {
         final rawData = doc.data();
@@ -90,7 +109,7 @@ class AuthRepository {
             data[key.toString()] = value;
           });
         }
-        data['uid'] = user.uid;
+        data['uid'] = uid;
         if (isMasterAdmin) {
           data['role'] = 'admin';
           data['isApproved'] = true;
@@ -98,23 +117,59 @@ class AuthRepository {
         return UserProfile.fromJson(data);
       }
 
-      // Create profile
+      // If document not found directly or on Web, try REST API fallback
+      if (kIsWeb && _authDataSource.lastIdToken != null) {
+        final profileFromRest = await _fetchUserProfileViaRest(uid, _authDataSource.lastIdToken!, email);
+        if (profileFromRest != null) return profileFromRest;
+      }
+
+      // Create profile fallback
       final profile = UserProfile(
-        uid: user.uid,
+        uid: uid,
         role: isMasterAdmin ? UserRole.admin : UserRole.viewer,
-        email: user.email,
-        phoneNumber: user.phoneNumber,
+        email: email,
         isApproved: isMasterAdmin ? true : false,
         createdAt: DateTime.now(),
       );
 
-      await _firestore.collection('users').doc(user.uid).set(profile.toJson());
       return profile;
     } catch (e, stackTrace) {
       print('getCurrentUserProfile error: $e');
-      print(stackTrace);
+      if (kIsWeb && _authDataSource.lastIdToken != null) {
+        try {
+          final profileFromRest = await _fetchUserProfileViaRest(uid, _authDataSource.lastIdToken!, email);
+          if (profileFromRest != null) return profileFromRest;
+        } catch (_) {}
+      }
       return null;
     }
+  }
+
+  /// REST fallback for fetching Firestore user profile on Web
+  Future<UserProfile?> _fetchUserProfileViaRest(String uid, String idToken, String? email) async {
+    try {
+      final url = Uri.parse('https://firestore.googleapis.com/v1/projects/mst7-3fb55/databases/(default)/documents/users/$uid');
+      final resp = await http.get(url, headers: {'Authorization': 'Bearer $idToken'});
+      if (resp.statusCode == 200) {
+        final doc = jsonDecode(resp.body);
+        final fields = doc['fields'] as Map<String, dynamic>?;
+        if (fields != null) {
+          final Map<String, dynamic> data = {'uid': uid};
+          fields.forEach((key, val) {
+            if (val is Map) {
+              if (val.containsKey('stringValue')) data[key] = val['stringValue'];
+              else if (val.containsKey('booleanValue')) data[key] = val['booleanValue'];
+              else if (val.containsKey('integerValue')) data[key] = int.tryParse(val['integerValue'].toString());
+              else if (val.containsKey('timestampValue')) data[key] = val['timestampValue'];
+            }
+          });
+          return UserProfile.fromJson(data);
+        }
+      }
+    } catch (e) {
+      print('REST user profile fetch failed: $e');
+    }
+    return null;
   }
 
   /// Update user profile in Firestore and Firebase Auth
@@ -133,15 +188,20 @@ class AuthRepository {
       }
 
       if (updates.isNotEmpty) {
-        await _firestore.collection('users').doc(user.uid).update(updates);
+        final db = _firestore;
+        if (db != null) {
+          await db.collection('users').doc(user.uid).update(updates);
+        }
       }
     } catch (e) {
       throw AuthException('Failed to update profile: $e');
     }
   }
 
-  /// Bind unique hardware device ID to user profile (supports 1 Phone + 1 Windows device)
+  /// Bind unique hardware device ID to user profile
   Future<void> bindHardwareId(String uid, String deviceId, {bool isWindows = false, bool isMobile = false}) async {
+    final db = _firestore;
+    if (kIsWeb || db == null) return;
     try {
       final updates = <String, dynamic>{
         'boundDeviceId': deviceId,
@@ -151,7 +211,7 @@ class AuthRepository {
       } else if (isMobile) {
         updates['boundMobileDeviceId'] = deviceId;
       }
-      await _firestore.collection('users').doc(uid).update(updates);
+      await db.collection('users').doc(uid).update(updates);
     } catch (e) {
       print('AuthRepository: bindHardwareId error: $e');
     }
@@ -159,17 +219,19 @@ class AuthRepository {
 
   /// Update device info in Firestore for performance monitoring
   Future<void> updateDeviceInfo() async {
+    final db = _firestore;
+    if (kIsWeb || db == null) return;
     final user = _authDataSource.getCurrentUser();
     if (user == null) return;
 
     try {
       final deviceInfo = await DeviceService.getDeviceInfo();
-      await _firestore.collection('users').doc(user.uid).update({
+      await db.collection('users').doc(user.uid).update({
         'deviceInfo': deviceInfo,
         'lastActive': FieldValue.serverTimestamp(),
       });
     } catch (e) {
-      // Silently fail - non-critical
+      print('AuthRepository: updateDeviceInfo error: $e');
     }
   }
 
@@ -189,7 +251,7 @@ class AuthRepository {
   }
 
   /// Get current Firebase user
-  dynamic getCurrentUser() => _authDataSource.getCurrentUser();
+  firebase_auth.User? getCurrentUser() => _authDataSource.getCurrentUser();
 
   /// Check if user is authenticated
   bool isAuthenticated() {
@@ -197,5 +259,5 @@ class AuthRepository {
   }
 
   /// Auth state stream
-  Stream get authStateStream => _authDataSource.authStateChanges;
+  Stream<firebase_auth.User?> get authStateStream => _authDataSource.authStateChanges;
 }

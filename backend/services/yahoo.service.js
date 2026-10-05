@@ -7,7 +7,12 @@ class YahooService extends EventEmitter {
         this.baseUrl = 'https://query1.finance.yahoo.com/v8/finance/chart';
         this.symbols = {
             'NIFTY50': '^NSEI',
-            'BANKNIFTY': '^NSEBANK'
+            'BANKNIFTY': '^NSEBANK',
+            'FINNIFTY': '^CNXFIN',
+            'MIDCAPNIFTY': '^NSEMDCP50',
+            'MIDCPNIFTY': '^NSMIDCP',
+            'SENSEX': '^BSESN',
+            'INDIA_VIX': '^INDIAVIX'
         };
         this.pollingInterval = 5000; // 5 seconds
         this.pollingTimer = null;

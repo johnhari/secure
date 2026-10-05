@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
+import 'package:uuid/uuid.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/constants/nifty_stocks.dart';
 import '../../core/theme/app_theme.dart';
@@ -48,12 +49,31 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
   bool _isGhostMode = false;
   bool _scanAllStocksMode = false; // false = NIFTY ONLY mode (Instant injection, zero scan delay)
 
+  Map<String, dynamic>? _extractMap(dynamic value) {
+    if (value == null) return null;
+    if (value is Map) {
+      final Map<String, dynamic> result = {};
+      value.forEach((k, v) => result[k.toString()] = v);
+      return result;
+    }
+    try {
+      final dynamic dyn = value;
+      if (dyn is Iterable) return null;
+      final Map<String, dynamic> result = {};
+      dyn.forEach((dynamic k, dynamic v) {
+        result[k.toString()] = v;
+      });
+      return result;
+    } catch (_) {}
+    return null;
+  }
+
   DateTime? _selectedCandleTime;
   String? _localSentiment;
   bool _isBigSignal = false;
   bool _isTrap = false;
   bool _isLiquidation = false;
-  double _bubbleScale = 5.0;
+  double _bubbleScale = 3.0;
   double _bubbleOpacity = 0.65;
   double _bubbleGlow = 0.0;
   bool _showLabel = true;
@@ -659,7 +679,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
         sellerCount: sellerVol,
         isInstitutional: true,
         isBigSignal: true,
-        bubbleScale: 5.0,
+        bubbleScale: _bubbleScale,
         pulseSpeed: 1.0,
         bubbleOpacity: 0.95,
         footprint: {
@@ -681,7 +701,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
         sellerCount: sellerLowVol,
         isInstitutional: true,
         isBigSignal: true,
-        bubbleScale: 5.0,
+        bubbleScale: _bubbleScale,
         pulseSpeed: 1.0,
         bubbleOpacity: 0.95,
         footprint: {
@@ -1059,7 +1079,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
         
         setState(() {
           _selectedCandleTime = null;
-          _bubbleScale = 5.0;
+          _bubbleScale = 3.0;
           _isBigSignal = false;
           _isTrap = false;
           _isLiquidation = false;
@@ -1347,6 +1367,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
     DateTime? expiryDate,
     bool? isCanceled,
     String? subscriptionType,
+    bool? allowDualDevice,
   }) async {
     setState(() => _isLoading = true);
     try {
@@ -1361,7 +1382,51 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
           expiryDate: expiryDate,
           isCanceled: isCanceled,
           subscriptionType: subscriptionType,
+          allowDualDevice: allowDualDevice,
         );
+
+        if (allowDualDevice != null) {
+          try {
+            final userSessionRef = FirebaseDatabase.instance.ref('${AppConstants.sessionsPath}/$uid');
+            await userSessionRef.update({
+              'allowDualDevice': allowDualDevice,
+              'allow1Mobile1Pc': allowDualDevice,
+            });
+
+            // If enabling dual access and user already has an active flat session, migrate it to its slot
+            if (allowDualDevice == true) {
+              try {
+                final rootSnap = await userSessionRef.get().timeout(const Duration(seconds: 3));
+                if (rootSnap.exists) {
+                  final sdata = _extractMap(rootSnap.value);
+                  if (sdata != null) {
+                    final flatActiveDeviceId = sdata['activeDeviceId']?.toString();
+                    final flatSessionId = sdata['sessionId']?.toString();
+                    final platform = sdata['platform']?.toString().toLowerCase() ?? '';
+                    final devName = sdata['deviceName']?.toString() ?? '';
+                    final isMobileSession = platform == 'mobile' || platform == 'android' || platform == 'ios' || devName.toLowerCase().contains('android') || devName.toLowerCase().contains('phone');
+                    final targetSlot = isMobileSession ? 'mobile' : 'pc';
+
+                    if (flatActiveDeviceId != null && !sdata.containsKey(targetSlot)) {
+                      await userSessionRef.child(targetSlot).set({
+                        'activeDeviceId': flatActiveDeviceId,
+                        'sessionId': flatSessionId ?? const Uuid().v4(),
+                        'deviceName': devName.isNotEmpty ? devName : (targetSlot == 'mobile' ? 'Mobile App' : 'PC Terminal'),
+                        'platform': platform.isNotEmpty ? platform : (targetSlot == 'mobile' ? 'mobile' : 'windows'),
+                        'slot': targetSlot,
+                        'lastSeen': ServerValue.timestamp,
+                        'createdAt': sdata['createdAt'] ?? ServerValue.timestamp,
+                        'forceLogout': false,
+                      });
+                      await userSessionRef.child('activeDeviceId').remove().catchError((_) => null);
+                      await userSessionRef.child('sessionId').remove().catchError((_) => null);
+                    }
+                  }
+                }
+              } catch (_) {}
+            }
+          } catch (_) {}
+        }
 
         if (isCanceled == true) {
           try {
@@ -1394,17 +1459,18 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
     }
   }
 
-  Future<void> _resetUserHardwareId(String uid, String userEmail) async {
+  Future<void> _resetUserHardwareId(String uid, String userEmail, {String? slot}) async {
+    final targetLabel = slot == 'mobile' ? 'MOBILE (APK)' : (slot == 'pc' ? 'PC / DESKTOP' : 'ALL DEVICES');
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.cardColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: Colors.amber, width: 1.2)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.security_rounded, color: Colors.amber, size: 20),
-            SizedBox(width: 10),
-            Text('RESET HARDWARE LOCK', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 14)),
+            const Icon(Icons.security_rounded, color: Colors.amber, size: 20),
+            const SizedBox(width: 10),
+            Text('RESET $targetLabel HWID', style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.w900, fontSize: 13)),
           ],
         ),
         content: Column(
@@ -1412,13 +1478,13 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Are you sure you want to reset the hardware ID lock for:\n$userEmail',
+              'Reset hardware lock ($targetLabel) for:\n$userEmail',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
             const SizedBox(height: 12),
-            const Text(
-              'The user will be able to log in from a NEW device on their next login. This action cannot be undone.',
-              style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold),
+            Text(
+              'The user will be able to bind a new ${slot == 'mobile' ? 'Mobile / APK device' : (slot == 'pc' ? 'PC' : 'device')} on next login.',
+              style: const TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold),
             ),
           ],
         ),
@@ -1438,11 +1504,11 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
     setState(() => _isLoading = true);
     try {
       final adminRepo = ref.read(adminRepositoryProvider);
-      await adminRepo.resetHardwareId(uid: uid);
+      await adminRepo.resetHardwareId(uid: uid, slot: slot);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('✅ HARDWARE LOCK CLEARED — User can now log in from a new device'),
+          SnackBar(
+            content: Text('✅ $targetLabel HARDWARE LOCK CLEARED — User can bind new device on next login'),
             backgroundColor: Colors.amber,
           ),
         );
@@ -1476,12 +1542,12 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Are you sure you want to terminate the active session and force logout:\n$userEmail',
+              'Are you sure you want to terminate all active sessions (both PC & Mobile) for:\n$userEmail',
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
             const SizedBox(height: 12),
             const Text(
-              'This will instantly kick the user out of the terminal and return them to the login screen.',
+              'This will instantly kick the user out of all terminals/devices and return them to the login screen.',
               style: TextStyle(color: AppTheme.bearColor, fontSize: 10, fontWeight: FontWeight.bold),
             ),
           ],
@@ -1503,11 +1569,13 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
     try {
       await FirebaseDatabase.instance.ref('${AppConstants.sessionsPath}/$uid').update({
         'forceLogout': true,
+        'pc/forceLogout': true,
+        'mobile/forceLogout': true,
       });
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ FORCE LOGOUT COMMAND SENT to $userEmail'),
+            content: Text('✅ FORCE LOGOUT COMMAND SENT to $userEmail (PC + Mobile terminated)'),
             backgroundColor: AppTheme.bearColor,
           ),
         );
@@ -1523,10 +1591,161 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
     }
   }
 
+  Future<void> _disconnectDeviceSlot(String uid, String slot, String userEmail) async {
+    final slotName = slot == 'mobile' ? 'Mobile App (APK)' : 'PC / Desktop';
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: const BorderSide(color: AppTheme.bearColor, width: 1.2)),
+        title: Row(
+          children: [
+            const Icon(Icons.phonelink_erase_rounded, color: AppTheme.bearColor, size: 20),
+            const SizedBox(width: 10),
+            Text('DISCONNECT $slotName'.toUpperCase(), style: const TextStyle(color: AppTheme.bearColor, fontWeight: FontWeight.w900, fontSize: 13)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Terminate active $slotName session for:\n$userEmail', style: const TextStyle(color: Colors.white, fontSize: 13)),
+            const SizedBox(height: 12),
+            Text(
+              'The $slotName will be logged out immediately while the other device session remains active.',
+              style: const TextStyle(color: AppTheme.bearColor, fontSize: 10, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('CANCEL', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.bearColor.withValues(alpha: 0.15), foregroundColor: AppTheme.bearColor),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('DISCONNECT', style: TextStyle(fontWeight: FontWeight.w900)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final slotRef = FirebaseDatabase.instance.ref('${AppConstants.sessionsPath}/$uid/$slot');
+      await slotRef.update({
+        'forceLogout': true,
+      });
+      Future.delayed(const Duration(milliseconds: 600), () async {
+        try {
+          await slotRef.remove();
+        } catch (_) {}
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Disconnected $slotName session for $userEmail'),
+            backgroundColor: AppTheme.bearColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('FAILED: $e'), backgroundColor: AppTheme.bearColor),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Widget _buildSessionSlotRow({
+    required IconData icon,
+    required String title,
+    required bool isActive,
+    Map<String, dynamic>? slotData,
+    VoidCallback? onDisconnect,
+  }) {
+    final devName = slotData?['deviceName']?.toString() ?? slotData?['platform']?.toString() ?? 'Device';
+    final activeId = slotData?['activeDeviceId']?.toString() ?? '';
+    final idSnippet = activeId.length > 14 ? '${activeId.substring(0, 14)}...' : activeId;
+
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: isActive ? AppTheme.bullColor : Colors.white30),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: isActive ? Colors.white : Colors.white54,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: isActive ? AppTheme.bullColor : Colors.white24,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    isActive ? 'ONLINE' : 'VACANT',
+                    style: TextStyle(
+                      color: isActive ? AppTheme.bullColor : Colors.white38,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+              if (isActive) ...[
+                const SizedBox(height: 2),
+                Text(
+                  '$devName • $idSnippet',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 8.5,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+        if (isActive && onDisconnect != null)
+          OutlinedButton(
+            onPressed: onDisconnect,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.bearColor,
+              side: const BorderSide(color: AppTheme.bearColor, width: 0.8),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              minimumSize: Size.zero,
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('DISCONNECT', style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900)),
+          ),
+      ],
+    );
+  }
+
   void _showUserEditDialog(UserProfile user) {
     DateTime? selectedDate = user.expiryDate;
     bool isCanceled = user.isCanceled;
     bool isApproved = user.isApproved;
+    bool allowDualDevice = user.allowDualDevice;
     // Subscription plan type — persist existing value
     String selectedPlanType = user.subscriptionType == SubscriptionType.indexOnly
         ? 'index_only'
@@ -1545,283 +1764,451 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
               Text('MANAGE USER ACCESS', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14)),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(user.email?.toUpperCase() ?? 'UNKNOWN USER', style: const TextStyle(color: AppTheme.dimTextColor, fontSize: 10, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 24),
-              
-              // Expiry Date Selection
-              const Text('EXPIRY DATE / TRIAL END', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 8),
-              InkWell(
-                onTap: () async {
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: selectedDate ?? DateTime.now().add(const Duration(days: 30)),
-                    firstDate: DateTime.now().subtract(const Duration(days: 365)),
-                    lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-                    builder: (context, child) => Theme(
-                      data: Theme.of(context).copyWith(
-                        colorScheme: const ColorScheme.dark(
-                          primary: AppTheme.primaryCyan,
-                          onPrimary: AppTheme.bgColor,
-                          surface: AppTheme.cardColor,
+          content: SizedBox(
+            width: 440,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(user.email?.toUpperCase() ?? 'UNKNOWN USER', style: const TextStyle(color: AppTheme.dimTextColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  
+                  // Expiry Date Selection
+                  const Text('EXPIRY DATE / TRIAL END', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: () async {
+                      final date = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate ?? DateTime.now().add(const Duration(days: 30)),
+                        firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                        builder: (context, child) => Theme(
+                          data: Theme.of(context).copyWith(
+                            colorScheme: const ColorScheme.dark(
+                              primary: AppTheme.primaryCyan,
+                              onPrimary: AppTheme.bgColor,
+                              surface: AppTheme.cardColor,
+                            ),
+                          ),
+                          child: child!,
                         ),
+                      );
+                      if (date != null) {
+                        setDialogState(() => selectedDate = date);
+                      }
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white10),
                       ),
-                      child: child!,
+                      child: Row(
+                        children: [
+                          const Icon(Icons.calendar_today_rounded, color: AppTheme.primaryCyan, size: 16),
+                          const SizedBox(width: 12),
+                          Text(
+                            selectedDate == null ? 'SET PERMANENT ACCESS' : DateFormat('MMM dd, yyyy').format(selectedDate!),
+                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                          ),
+                          const Spacer(),
+                          if (selectedDate != null)
+                            IconButton(
+                              icon: const Icon(Icons.close, color: AppTheme.bearColor, size: 16),
+                              onPressed: () => setDialogState(() => selectedDate = null),
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                        ],
+                      ),
                     ),
-                  );
-                  if (date != null) {
-                    setDialogState(() => selectedDate = date);
-                  }
-                },
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white10),
                   ),
-                  child: Row(
+                  const SizedBox(height: 18),
+
+                  // ── Plan Type Selector ────────────────────────────────────────
+                  const Text('SUBSCRIPTION PLAN TYPE', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 8),
+                  Row(
                     children: [
-                      const Icon(Icons.calendar_today_rounded, color: AppTheme.primaryCyan, size: 16),
-                      const SizedBox(width: 12),
-                      Text(
-                        selectedDate == null ? 'SET PERMANENT ACCESS' : DateFormat('MMM dd, yyyy').format(selectedDate!),
-                        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
-                      ),
-                      const Spacer(),
-                      if (selectedDate != null)
-                        IconButton(
-                          icon: const Icon(Icons.close, color: AppTheme.bearColor, size: 16),
-                          onPressed: () => setDialogState(() => selectedDate = null),
-                          padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints(),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setDialogState(() => selectedPlanType = 'index_only'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: selectedPlanType == 'index_only'
+                                  ? const Color(0xFF00C8FF).withValues(alpha: 0.15)
+                                  : Colors.white.withValues(alpha: 0.04),
+                              borderRadius: const BorderRadius.horizontal(left: Radius.circular(10)),
+                              border: Border.all(
+                                color: selectedPlanType == 'index_only'
+                                    ? const Color(0xFF00C8FF)
+                                    : Colors.white12,
+                                width: selectedPlanType == 'index_only' ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text('INDEX ONLY',
+                                    style: TextStyle(
+                                        color: selectedPlanType == 'index_only'
+                                            ? const Color(0xFF00C8FF)
+                                            : Colors.white38,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5)),
+                                const SizedBox(height: 2),
+                                Text('Index Only Plan',
+                                    style: TextStyle(
+                                        color: selectedPlanType == 'index_only'
+                                            ? Colors.white70
+                                            : Colors.white24,
+                                        fontSize: 8)),
+                              ],
+                            ),
+                          ),
                         ),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: () => setDialogState(() => selectedPlanType = 'index_and_stocks'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            decoration: BoxDecoration(
+                              color: selectedPlanType == 'index_and_stocks'
+                                  ? AppTheme.bullColor.withValues(alpha: 0.12)
+                                  : Colors.white.withValues(alpha: 0.04),
+                              borderRadius: const BorderRadius.horizontal(right: Radius.circular(10)),
+                              border: Border.all(
+                                color: selectedPlanType == 'index_and_stocks'
+                                    ? AppTheme.bullColor
+                                    : Colors.white12,
+                                width: selectedPlanType == 'index_and_stocks' ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Column(
+                              children: [
+                                Text('INDEX + STOCKS',
+                                    style: TextStyle(
+                                        color: selectedPlanType == 'index_and_stocks'
+                                            ? AppTheme.bullColor
+                                            : Colors.white38,
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.w900,
+                                        letterSpacing: 0.5)),
+                                const SizedBox(height: 2),
+                                Text('Full Access Plan',
+                                    style: TextStyle(
+                                        color: selectedPlanType == 'index_and_stocks'
+                                            ? Colors.white70
+                                            : Colors.white24,
+                                        fontSize: 8)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
+                  const SizedBox(height: 18),
 
-              // ── Plan Type Selector ────────────────────────────────────────
-              const Text('SUBSCRIPTION PLAN TYPE', style: TextStyle(color: Colors.white70, fontSize: 9, fontWeight: FontWeight.w900)),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setDialogState(() => selectedPlanType = 'index_only'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                  // Status Toggles
+                  _buildDialogToggle(
+                    label: 'APPROVED ACCESS',
+                    value: isApproved,
+                    activeColor: AppTheme.bullColor,
+                    onChanged: (v) => setDialogState(() => isApproved = v),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDialogToggle(
+                    label: '1 MOBILE + 1 PC (DUAL ACCESS)',
+                    value: allowDualDevice,
+                    activeColor: AppTheme.primaryCyan,
+                    onChanged: (v) => setDialogState(() => allowDualDevice = v),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildDialogToggle(
+                    label: 'SUSPEND / CANCEL USER',
+                    value: isCanceled,
+                    activeColor: AppTheme.bearColor,
+                    onChanged: (v) => setDialogState(() => isCanceled = v),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ── Live Dual Device Sessions Monitor (Realtime Database) ───────
+                  StreamBuilder<DatabaseEvent>(
+                    stream: FirebaseDatabase.instance.ref('${AppConstants.sessionsPath}/${user.uid}').onValue,
+                    builder: (context, snapshot) {
+                      Map<String, dynamic>? data;
+                      if (snapshot.hasData && snapshot.data!.snapshot.value != null) {
+                        data = _extractMap(snapshot.data!.snapshot.value);
+                      }
+
+                      Map<String, dynamic>? pcData;
+                      Map<String, dynamic>? mobileData;
+
+                      if (data != null) {
+                        if (data['pc'] is Map) {
+                          pcData = _extractMap(data['pc']);
+                        }
+                        if (data['mobile'] is Map) {
+                          mobileData = _extractMap(data['mobile']);
+                        }
+                        // Handle fallback flat sessions if not in slot map yet
+                        if (pcData == null && mobileData == null && data['activeDeviceId'] != null) {
+                          final plat = data['platform']?.toString().toLowerCase() ?? '';
+                          final isMob = plat == 'android' || plat == 'ios' || plat == 'mobile';
+                          if (isMob) {
+                            mobileData = data;
+                          } else {
+                            pcData = data;
+                          }
+                        }
+                      }
+
+                      final bool pcActive = pcData != null && pcData['activeDeviceId'] != null && pcData['forceLogout'] != true;
+                      final bool mobileActive = mobileData != null && mobileData['activeDeviceId'] != null && mobileData['forceLogout'] != true;
+
+                      return Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(12),
                         decoration: BoxDecoration(
-                          color: selectedPlanType == 'index_only'
-                              ? const Color(0xFF00C8FF).withValues(alpha: 0.15)
-                              : Colors.white.withValues(alpha: 0.04),
-                          borderRadius: const BorderRadius.horizontal(left: Radius.circular(10)),
-                          border: Border.all(
-                            color: selectedPlanType == 'index_only'
-                                ? const Color(0xFF00C8FF)
-                                : Colors.white12,
-                            width: selectedPlanType == 'index_only' ? 1.5 : 1,
-                          ),
+                          color: AppTheme.primaryCyan.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.25)),
                         ),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('INDEX ONLY',
-                                style: TextStyle(
-                                    color: selectedPlanType == 'index_only'
-                                        ? const Color(0xFF00C8FF)
-                                        : Colors.white38,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5)),
-                            const SizedBox(height: 2),
-                            Text('Index Only Plan',
-                                style: TextStyle(
-                                    color: selectedPlanType == 'index_only'
-                                        ? Colors.white70
-                                        : Colors.white24,
-                                    fontSize: 8)),
+                            Row(
+                              children: [
+                                const Icon(Icons.devices_other_rounded, color: AppTheme.primaryCyan, size: 14),
+                                const SizedBox(width: 6),
+                                const Text(
+                                  'DUAL SESSION LIVE MONITOR',
+                                  style: TextStyle(color: AppTheme.primaryCyan, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5),
+                                ),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: (pcActive && mobileActive)
+                                        ? AppTheme.bullColor.withValues(alpha: 0.2)
+                                        : (pcActive || mobileActive)
+                                            ? Colors.orange.withValues(alpha: 0.2)
+                                            : Colors.white10,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    (pcActive && mobileActive)
+                                        ? 'DUAL ACTIVE (2/2)'
+                                        : (pcActive || mobileActive)
+                                            ? '1 ACTIVE (1/2)'
+                                            : 'ALL OFFLINE (0/2)',
+                                    style: TextStyle(
+                                      color: (pcActive && mobileActive)
+                                          ? AppTheme.bullColor
+                                          : (pcActive || mobileActive)
+                                              ? Colors.orange
+                                              : Colors.white38,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 10),
+                            // PC Slot Row
+                            _buildSessionSlotRow(
+                              icon: Icons.computer_rounded,
+                              title: 'PC / DESKTOP',
+                              isActive: pcActive,
+                              slotData: pcData,
+                              onDisconnect: pcActive ? () => _disconnectDeviceSlot(user.uid, 'pc', user.email ?? user.uid) : null,
+                            ),
+                            const SizedBox(height: 8),
+                            const Divider(height: 1, color: Colors.white10),
+                            const SizedBox(height: 8),
+                            // Mobile Slot Row
+                            _buildSessionSlotRow(
+                              icon: Icons.phone_android_rounded,
+                              title: 'MOBILE / APK',
+                              isActive: mobileActive,
+                              slotData: mobileData,
+                              onDisconnect: mobileActive ? () => _disconnectDeviceSlot(user.uid, 'mobile', user.email ?? user.uid) : null,
+                            ),
                           ],
                         ),
+                      );
+                    },
+                  ),
+
+                  if (user.registeredDeviceName != null || user.registeredDeviceDetails != null) ...[
+                    Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryCyan.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.2)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.perm_device_info_rounded, color: AppTheme.primaryCyan, size: 14),
+                              SizedBox(width: 6),
+                              Text('REGISTERED HARDWARE PROFILE', style: TextStyle(color: AppTheme.primaryCyan, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Name: ${user.registeredDeviceName ?? 'Unknown Device'}',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Specs: ${user.registeredDeviceDetails ?? 'Unknown specifications'}',
+                            style: const TextStyle(color: Colors.white70, fontSize: 9.5, height: 1.3),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setDialogState(() => selectedPlanType = 'index_and_stocks'),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 10),
-                        decoration: BoxDecoration(
-                          color: selectedPlanType == 'index_and_stocks'
-                              ? AppTheme.bullColor.withValues(alpha: 0.12)
-                              : Colors.white.withValues(alpha: 0.04),
-                          borderRadius: const BorderRadius.horizontal(right: Radius.circular(10)),
-                          border: Border.all(
-                            color: selectedPlanType == 'index_and_stocks'
-                                ? AppTheme.bullColor
-                                : Colors.white12,
-                            width: selectedPlanType == 'index_and_stocks' ? 1.5 : 1,
-                          ),
-                        ),
-                        child: Column(
+                  ],
+
+                  // ── Hardware ID Lock Reset ────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Row(
                           children: [
-                            Text('INDEX + STOCKS',
-                                style: TextStyle(
-                                    color: selectedPlanType == 'index_and_stocks'
-                                        ? AppTheme.bullColor
-                                        : Colors.white38,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: 0.5)),
-                            const SizedBox(height: 2),
-                            Text('Full Access Plan',
-                                style: TextStyle(
-                                    color: selectedPlanType == 'index_and_stocks'
-                                        ? Colors.white70
-                                        : Colors.white24,
-                                    fontSize: 8)),
+                            Icon(Icons.computer_rounded, color: Colors.amber, size: 14),
+                            SizedBox(width: 6),
+                            Text('HARDWARE LOCK STATUS', style: TextStyle(color: Colors.amber, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 6),
+                        Text(
+                          () {
+                            final win = user.boundWindowsDeviceId;
+                            final mob = user.boundMobileDeviceId;
+                            final legacy = user.boundDeviceId;
+                            final parts = <String>[];
+                            if (win != null && win.isNotEmpty) parts.add('PC: ${win.substring(0, win.length.clamp(0, 16))}...');
+                            if (mob != null && mob.isNotEmpty) parts.add('Phone: ${mob.substring(0, mob.length.clamp(0, 16))}...');
+                            if (parts.isEmpty && legacy != null && legacy.isNotEmpty) parts.add('Bound: ${legacy.substring(0, legacy.length.clamp(0, 16))}...');
+                            return parts.isNotEmpty ? parts.join(' | ') : 'No device bound — user will bind on next login';
+                          }(),
+                          style: TextStyle(
+                            color: (user.boundWindowsDeviceId != null || user.boundMobileDeviceId != null || user.boundDeviceId != null) ? Colors.white60 : Colors.greenAccent,
+                            fontSize: 9,
+                            fontFamily: 'monospace',
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        if (user.allowDualDevice) ...[
+                          Row(
+                            children: [
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.refresh_rounded, size: 12),
+                                  label: const Text('RESET PC HWID', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900)),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.amber,
+                                    side: const BorderSide(color: Colors.amber),
+                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                  ),
+                                  onPressed: (user.boundWindowsDeviceId == null || user.boundWindowsDeviceId!.isEmpty) &&
+                                          (user.boundDeviceId == null || user.boundDeviceId!.isEmpty)
+                                      ? null
+                                      : () {
+                                          Navigator.pop(context);
+                                          _resetUserHardwareId(user.uid, user.email ?? user.uid, slot: 'pc');
+                                        },
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: OutlinedButton.icon(
+                                  icon: const Icon(Icons.refresh_rounded, size: 12),
+                                  label: const Text('RESET MOBILE HWID', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.w900)),
+                                  style: OutlinedButton.styleFrom(
+                                    foregroundColor: Colors.amber,
+                                    side: const BorderSide(color: Colors.amber),
+                                    padding: const EdgeInsets.symmetric(vertical: 6),
+                                  ),
+                                  onPressed: (user.boundMobileDeviceId == null || user.boundMobileDeviceId!.isEmpty)
+                                      ? null
+                                      : () {
+                                          Navigator.pop(context);
+                                          _resetUserHardwareId(user.uid, user.email ?? user.uid, slot: 'mobile');
+                                        },
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                        ],
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.lock_reset_rounded, size: 14),
+                            label: Text(
+                              user.allowDualDevice ? 'RESET BOTH (PC & MOBILE HWID)' : 'RESET HARDWARE ID LOCK',
+                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.amber,
+                              side: const BorderSide(color: Colors.amber),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                            onPressed: (user.boundWindowsDeviceId == null || user.boundWindowsDeviceId!.isEmpty) &&
+                                    (user.boundMobileDeviceId == null || user.boundMobileDeviceId!.isEmpty) &&
+                                    (user.boundDeviceId == null || user.boundDeviceId!.isEmpty)
+                                ? null
+                                : () {
+                                    Navigator.pop(context);
+                                    _resetUserHardwareId(user.uid, user.email ?? user.uid);
+                                  },
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            icon: const Icon(Icons.gavel_rounded, size: 14),
+                            label: const Text('FORCE LOGOUT ALL SESSIONS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppTheme.bearColor,
+                              side: const BorderSide(color: AppTheme.bearColor),
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                            ),
+                            onPressed: () {
+                              Navigator.pop(context);
+                              _forceLogoutUser(user.uid, user.email ?? user.uid);
+                            },
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
-
-              // Status Toggles
-              _buildDialogToggle(
-                label: 'APPROVED ACCESS',
-                value: isApproved,
-                activeColor: AppTheme.bullColor,
-                onChanged: (v) => setDialogState(() => isApproved = v),
-              ),
-              const SizedBox(height: 8),
-              _buildDialogToggle(
-                label: 'SUSPEND / CANCEL USER',
-                value: isCanceled,
-                activeColor: AppTheme.bearColor,
-                onChanged: (v) => setDialogState(() => isCanceled = v),
-              ),
-              const SizedBox(height: 16),
-
-              if (user.registeredDeviceName != null || user.registeredDeviceDetails != null) ...[
-                Container(
-                  width: double.infinity,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryCyan.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.2)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Row(
-                        children: [
-                          Icon(Icons.perm_device_info_rounded, color: AppTheme.primaryCyan, size: 14),
-                          SizedBox(width: 6),
-                          Text('PC DETAILS & HARDWARE', style: TextStyle(color: AppTheme.primaryCyan, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Name: ${user.registeredDeviceName ?? 'Unknown PC'}',
-                        style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Specs: ${user.registeredDeviceDetails ?? 'Unknown specifications'}',
-                        style: const TextStyle(color: Colors.white70, fontSize: 9.5, height: 1.3),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-
-              // ── Hardware ID Lock Reset ────────────────────────────────────
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.amber.withValues(alpha: 0.06),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Row(
-                      children: [
-                        Icon(Icons.computer_rounded, color: Colors.amber, size: 14),
-                        SizedBox(width: 6),
-                        Text('HARDWARE LOCK STATUS', style: TextStyle(color: Colors.amber, fontSize: 9, fontWeight: FontWeight.w900, letterSpacing: 0.5)),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      () {
-                        final win = user.boundWindowsDeviceId;
-                        final mob = user.boundMobileDeviceId;
-                        final legacy = user.boundDeviceId;
-                        final parts = <String>[];
-                        if (win != null && win.isNotEmpty) parts.add('Win: ${win.substring(0, win.length.clamp(0, 16))}...');
-                        if (mob != null && mob.isNotEmpty) parts.add('Phone: ${mob.substring(0, mob.length.clamp(0, 16))}...');
-                        if (parts.isEmpty && legacy != null && legacy.isNotEmpty) parts.add('Bound: ${legacy.substring(0, legacy.length.clamp(0, 16))}...');
-                        return parts.isNotEmpty ? parts.join(' | ') : 'No device bound — user will bind on next login';
-                      }(),
-                      style: TextStyle(
-                        color: (user.boundWindowsDeviceId != null || user.boundMobileDeviceId != null || user.boundDeviceId != null) ? Colors.white60 : Colors.greenAccent,
-                        fontSize: 9,
-                        fontFamily: 'monospace',
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.lock_reset_rounded, size: 14),
-                        label: const Text('RESET HARDWARE ID LOCK', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.amber,
-                          side: const BorderSide(color: Colors.amber),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
-                        onPressed: (user.boundWindowsDeviceId == null || user.boundWindowsDeviceId!.isEmpty) &&
-                                (user.boundMobileDeviceId == null || user.boundMobileDeviceId!.isEmpty) &&
-                                (user.boundDeviceId == null || user.boundDeviceId!.isEmpty)
-                            ? null
-                            : () {
-                                Navigator.pop(context);
-                                _resetUserHardwareId(user.uid, user.email ?? user.uid);
-                              },
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.gavel_rounded, size: 14),
-                        label: const Text('FORCE LOGOUT (KILL SESSION)', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900)),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppTheme.bearColor,
-                          side: const BorderSide(color: AppTheme.bearColor),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _forceLogoutUser(user.uid, user.email ?? user.uid);
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+            ),
           ),
           actions: [
             TextButton(
@@ -1837,6 +2224,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
                   expiryDate: selectedDate, 
                   isCanceled: isCanceled,
                   subscriptionType: selectedPlanType,
+                  allowDualDevice: allowDualDevice,
                 );
               },
               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryCyan),
@@ -1844,6 +2232,138 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// Approval dialog for pending users to choose Single Device vs Dual Device (1 Mobile + 1 PC)
+  void _showApprovalDialog(UserProfile user) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.cardColor,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: const BorderSide(color: AppTheme.bullColor, width: 1.2),
+        ),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppTheme.bullColor.withValues(alpha: 0.15),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.verified_user_rounded, color: AppTheme.bullColor, size: 20),
+            ),
+            const SizedBox(width: 12),
+            const Text(
+              'APPROVE USER ACCESS',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 14),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              user.email?.toUpperCase() ?? 'UNKNOWN USER',
+              style: const TextStyle(color: AppTheme.dimTextColor, fontSize: 10, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Select authorized device access policy for this user:',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 14),
+            // Option 1: 1 Mobile + 1 PC (Dual Access)
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                _updateUserStatus(user.uid, true, allowDualDevice: true);
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryCyan.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.primaryCyan.withValues(alpha: 0.4), width: 1.2),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.devices_rounded, color: AppTheme.primaryCyan, size: 22),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '1 MOBILE + 1 PC (DUAL ACCESS)',
+                            style: TextStyle(color: AppTheme.primaryCyan, fontWeight: FontWeight.w900, fontSize: 11),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Permits 1 PC and 1 Mobile simultaneously',
+                            style: TextStyle(color: Colors.white60, fontSize: 9.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, color: AppTheme.primaryCyan, size: 12),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            // Option 2: Single Device Only
+            InkWell(
+              onTap: () {
+                Navigator.pop(ctx);
+                _updateUserStatus(user.uid, true, allowDualDevice: false);
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.04),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.phone_android_rounded, color: Colors.white70, size: 22),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'SINGLE DEVICE ONLY',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 11),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Strict 1 active session across all devices',
+                            style: TextStyle(color: Colors.white54, fontSize: 9.5),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white38, size: 12),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('CANCEL', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+          ),
+        ],
       ),
     );
   }
@@ -2988,7 +3508,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
     final timeStr = DateFormat('hh:mm a').format(candle.timeStart);
     setState(() {
       _selectedCandleTime = candle.timeStart;
-      _bubbleScale = 5.0; // Default ball size 5.0x whether BUY or SELL
+      if (_bubbleScale <= 0) _bubbleScale = 3.0; // Default ball size 3.0x
       if (type == 'BUY') {
         _buyerCountController.text = _randomizeValue(50000).toString();
         _sellerCountController.text = '';
@@ -3056,7 +3576,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
       final authState = ref.read(authProvider);
       final orderflowRepo = ref.read(orderflowRepositoryProvider);
 
-      // Save orderflow silently without any alert popups or notifications
+      // Save orderflow silently with full admin customizable ball size
       await orderflowRepo.saveOrderflowBulk(
         candleKeys: [candle.candleKey],
         symbol: selectedInstrument,
@@ -3064,6 +3584,14 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
         sellerCount: sellerCount,
         isBigSignal: true,
         adminUid: authState.user?.uid ?? 'ADMIN',
+        bubbleScale: _bubbleScale,
+        bubbleOpacity: _bubbleOpacity,
+        bubbleGlow: _bubbleGlow,
+        customTag: _customTagController.text.isNotEmpty ? _customTagController.text : (buyerCount >= sellerCount ? 'BUY' : 'SELL'),
+        pulseSpeed: _pulseSpeed,
+        borderColor: _borderColorSelection,
+        isTrap: _isTrap,
+        isLiquidation: _isLiquidation,
         broadcastPush: false, // Bypasses broadcast alert
         adminOnly: true, // Visible only for admin advertisement purpose
       );
@@ -3857,10 +4385,10 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
           childAspectRatio: 2.2,
           children: [
             _buildTemplateCard('BUY ORDER', AppTheme.bullColor, Icons.trending_up_rounded, () {
-              _applyTemplate(buy: 100000, sell: 0, tag: 'BUY', scale: 20.0, pulse: 1.2, glow: 1.0, color: 'DEFAULT');
+              _applyTemplate(buy: 100000, sell: 0, tag: 'BUY', scale: 7.0, pulse: 1.2, glow: 1.0, color: 'DEFAULT');
             }),
             _buildTemplateCard('SELL ORDER', AppTheme.bearColor, Icons.trending_down_rounded, () {
-              _applyTemplate(buy: 0, sell: 100000, tag: 'SELL', scale: 20.0, pulse: 1.2, glow: 1.0, color: 'DEFAULT');
+              _applyTemplate(buy: 0, sell: 100000, tag: 'SELL', scale: 7.0, pulse: 1.2, glow: 1.0, color: 'DEFAULT');
             }),
           ],
         ),
@@ -3986,11 +4514,91 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
               thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6.0),
             ),
             child: Slider(
-              value: _bubbleScale.clamp(1.0, 50.0),
+              value: _bubbleScale.clamp(1.0, 9.0),
               min: 1.0,
-              max: 50.0,
-              divisions: 49,
+              max: 9.0,
+              divisions: 16,
               onChanged: (value) => setState(() => _bubbleScale = value),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // Quick Ball Size Presets (1x to 9x)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0].map((s) {
+              final isSelected = (_bubbleScale - s).abs() < 0.25;
+              return GestureDetector(
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  setState(() => _bubbleScale = s);
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isSelected ? AppTheme.primaryCyan.withValues(alpha: 0.25) : Colors.white.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: isSelected ? AppTheme.primaryCyan : Colors.white12),
+                  ),
+                  child: Text(
+                    '${s.toInt()}x',
+                    style: TextStyle(
+                      color: isSelected ? AppTheme.primaryCyan : Colors.white70,
+                      fontSize: 9.0,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+          // Live Ball Preview
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.35),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.white10),
+            ),
+            child: Column(
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.remove_red_eye_outlined, color: AppTheme.primaryCyan, size: 12),
+                    const SizedBox(width: 5),
+                    Text(
+                      'LIVE BALL PREVIEW • ${_bubbleScale.toStringAsFixed(1)}X SCALE',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  height: 110,
+                  child: Center(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: AdminGlowingOrb(
+                        count: (int.tryParse(_buyerCountController.text) ?? 0) > 0 
+                            ? (int.tryParse(_buyerCountController.text) ?? 52000)
+                            : (int.tryParse(_sellerCountController.text) ?? 52000),
+                        isBuyer: (int.tryParse(_buyerCountController.text) ?? 0) >= (int.tryParse(_sellerCountController.text) ?? 0),
+                        scale: _bubbleScale,
+                        customTag: _customTagController.text.isNotEmpty ? _customTagController.text : "ORDER",
+                        isTrap: _isTrap,
+                        isLiquidation: _isLiquidation,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 16),
@@ -5466,6 +6074,10 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
                                           _buildStatusTag('EXPIRED', Colors.orange),
                                         if (isApproved && !isExpired && !isCanceled)
                                           _buildStatusTag('ACTIVE', AppTheme.bullColor),
+                                        if (user.allowDualDevice) ...[
+                                          const SizedBox(width: 4),
+                                          _buildStatusTag('1 PC + 1 MOB', AppTheme.primaryCyan),
+                                        ],
                                       ],
                                     ),
                                     Text(
@@ -5523,7 +6135,7 @@ class _AdminPanelScreenState extends ConsumerState<AdminPanelScreen> with Single
                                       child: InkWell(
                                         onTap: () {
                                           HapticFeedback.mediumImpact();
-                                          _updateUserStatus(user.uid, true);
+                                          _showApprovalDialog(user);
                                         },
                                         borderRadius: BorderRadius.circular(8),
                                         child: Container(

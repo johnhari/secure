@@ -33,8 +33,10 @@ jobs:
       - name: Build iOS Application (Release)
         run: |
           cd orderflow
-          # Strip -G flag from ALL config files in Pods (xcconfig, pbxproj, etc.)
-          grep -rl -- '-G' ios/Pods/ 2>/dev/null | xargs sed -i '' 's/ -G / /g; s/ -G$//g; s/"-G /"/g; s/ -G"/"/g' 2>/dev/null || true
+          if [ -d "ios/Pods" ]; then
+            find ios/Pods -type f -exec sed -i '' 's/ -G / /g; s/ -G$//g; s/"-G /"/g; s/ -G"/"/g' {} + 2>/dev/null || true
+          fi
+          export OTHER_LDFLAGS="\$(inherited) -Wl,-ld_classic"
           flutter build ios --release --no-codesign
           
           # Find the compiled Runner.app

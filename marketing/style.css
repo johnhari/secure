@@ -2059,3 +2059,13 @@ details.glass[open] summary {
     display: block;
 }
 
+/* Fix Apple Logo & Access Buttons */
+.nav-mac-login-btn {
+    white-space: nowrap !important;
+}
+.nav-mac-login-btn svg, 
+.mega-pay-button svg {
+    flex-shrink: 0 !important;
+}
+
+

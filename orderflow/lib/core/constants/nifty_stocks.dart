@@ -205,6 +205,19 @@ class NiftyStocks {
   static bool isIndexOnlyAllowed(String symbol) =>
       indexOnlySymbols.containsKey(symbol.toUpperCase());
 
+  /// Returns true if [symbol] represents a market index rather than an individual stock.
+  static bool isIndex(String symbol) {
+    if (symbol.isEmpty) return false;
+    final clean = symbol.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    return indices.containsKey(clean) || 
+           clean == 'NIFTY' || 
+           clean == 'MIDCPNIFTY' || 
+           clean == 'BANKEX' ||
+           clean.startsWith('NIFTY') ||
+           clean.startsWith('BANKNIFTY') ||
+           clean.startsWith('SENSEX');
+  }
+
   /// Search matching indices and stocks. Returns map of matching symbol to name.
   static Map<String, String> search(String query) {
     if (query.isEmpty) return {};

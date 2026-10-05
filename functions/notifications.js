@@ -2,6 +2,7 @@ const admin = require('firebase-admin');
 const nodemailer = require('nodemailer');
 const functions = require('firebase-functions');
 const crypto = require('crypto');
+const moment = require('moment-timezone');
 
 const db = admin.firestore();
 
@@ -182,6 +183,19 @@ const sendFCMToAdmins = async (userProfile) => {
     }
 };
 
+const INDEX_NAMES = new Set([
+    'NIFTY', 'NIFTY50', 'BANKNIFTY', 'FINNIFTY', 'MIDCAPNIFTY', 'MIDCPNIFTY', 'SENSEX', 'BANKEX',
+    'NIFTYIT', 'NIFTYAUTO', 'NIFTYMETAL', 'NIFTYPHARMA', 'NIFTYFMCG', 'NIFTYINFRA', 'NIFTYENERGY',
+    'NIFTYMEDIA', 'NIFTYREALTY', 'NIFTYPSE'
+]);
+
+const isIndexSymbol = (sym) => {
+    if (!sym) return false;
+    const clean = sym.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (INDEX_NAMES.has(clean)) return true;
+    return clean.startsWith('NIFTY') || clean.startsWith('BANKNIFTY') || clean.startsWith('SENSEX');
+};
+
 /**
  * Broadcast orderflow update to all users via topics
  */
@@ -207,18 +221,33 @@ exports.broadcastOrderflowUpdate = async (candleData) => {
             return;
         }
 
-        // Format candle time (HH:mm IST) if present
+        // USER REQUIREMENT: Only index notification get notification from this app!
+        // Stocks do NOT send push notifications - they only update the in-app Bell icon.
+        if (!isIndexSymbol(symbol)) {
+            console.log(`[FCM] Symbol ${symbol} is a stock. Skipping push notification (stocks update in-app bell).`);
+            return;
+        }
+
+        // Format candle time (HH:mm IST)
         let timeLabel = '';
-        const rawTime = candleTime || (candleKey && candleKey.includes('_') ? candleKey.split('_').last : candleKey);
+        const rawTime = candleTime || (candleKey && typeof candleKey === 'string' && candleKey.includes('_') ? candleKey.split('_').slice(-1)[0] : candleKey);
         const parsedMs = Number(rawTime);
-        if (parsedMs && !isNaN(parsedMs) && parsedMs > 0) {
-            const actualMs = parsedMs < 10000000000 ? parsedMs * 1000 : parsedMs;
-            const dt = new Date(actualMs);
-            if (!isNaN(dt.getTime())) {
-                const hours = String(dt.getHours()).padStart(2, '0');
-                const minutes = String(dt.getMinutes()).padStart(2, '0');
-                timeLabel = `[${hours}:${minutes}] `;
-            }
+        const targetMs = (parsedMs && !isNaN(parsedMs) && parsedMs > 0)
+            ? (parsedMs < 10000000000 ? parsedMs * 1000 : parsedMs)
+            : Date.now();
+
+        try {
+            const timeStr = moment(targetMs).tz('Asia/Kolkata').format('HH:mm');
+            timeLabel = `[${timeStr}] `;
+        } catch (err) {
+            const dt = new Date(targetMs);
+            const timeStr = dt.toLocaleTimeString('en-GB', {
+                timeZone: 'Asia/Kolkata',
+                hour: '2-digit',
+                minute: '2-digit',
+                hourCycle: 'h23'
+            });
+            timeLabel = `[${timeStr}] `;
         }
 
         const topic = 'global_alerts';
@@ -369,6 +398,12 @@ exports.broadcastTradeSignal = async (signalData) => {
         }
 
         const { signal, confidence, instrument, reasoning } = signalData;
+
+        // USER REQUIREMENT: Only index notification get notification from this app!
+        if (!isIndexSymbol(instrument)) {
+            console.log(`[FCM] Instrument ${instrument} is a stock. Skipping push notification (stocks update in-app bell).`);
+            return;
+        }
 
         const signalEmoji = {
             'STRONG_BUY': '🟢🟢',

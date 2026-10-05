@@ -6,6 +6,12 @@
 *.zip
 *.tar.gz
 *.7z
+*.exe
+*.rar
+build_dist/
+MostAdvanceOrderflowAnalyzer/
+scratch/
+/*.png
 
 # JDK and Local Tools
 jdk-17/

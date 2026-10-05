@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:intl/intl.dart' as intl;
 import 'dart:ui';
 import 'dart:async';
 import '../../core/services/market_time_service.dart';
@@ -10,6 +11,7 @@ import '../providers/heatmap_provider.dart';
 import '../../core/constants/nifty_stocks.dart';
 import '../../core/constants/stock_logos.dart';
 import '../../core/utils/open_drive_helper.dart';
+import '../../domain/services/heatmap_service.dart';
 import '../providers/auth_provider.dart';
 
 class HeatmapScreen extends ConsumerStatefulWidget {
@@ -26,18 +28,25 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
   bool _isRefreshing = false;
   bool _isBackgroundUpdating = false;
   Timer? _liveUpdateTimer;
+  String _lastSyncTime = '';
 
   @override
   void initState() {
     super.initState();
     _triggerOnDemandFetch();
     
-    // Set up live update timer every 15 seconds when market is open
+    // Set up live update timer every 15 seconds for continuous market sync
     _liveUpdateTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
-      if (MarketTimeService.isMarketOpen()) {
-        _triggerSilentFetch();
-      }
+      _triggerSilentFetch();
     });
+  }
+
+  void _updateLastSyncTime() {
+    if (mounted) {
+      setState(() {
+        _lastSyncTime = intl.DateFormat('hh:mm:ss a').format(DateTime.now());
+      });
+    }
   }
 
   @override
@@ -50,9 +59,15 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
   Future<void> _triggerOnDemandFetch() async {
     setState(() => _isRefreshing = true);
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('getHeatmapData');
-      await callable.call();
-      debugPrint('[HeatmapScreen] Live fetch complete.');
+      final liveData = await HeatmapService().fetchLiveHeatmapData(forceRefresh: true);
+      _updateLastSyncTime();
+      debugPrint('[HeatmapScreen] Live fetch complete for ${liveData.length} stocks.');
+
+      // Also trigger Cloud Function in background if available
+      try {
+        final callable = FirebaseFunctions.instance.httpsCallable('getHeatmapData');
+        callable.call().catchError((_) {});
+      } catch (_) {}
     } catch (e) {
       debugPrint('[HeatmapScreen] Failed to trigger live fetch: $e');
     } finally {
@@ -66,9 +81,9 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
     if (_isBackgroundUpdating || _isRefreshing) return;
     _isBackgroundUpdating = true;
     try {
-      final callable = FirebaseFunctions.instance.httpsCallable('getHeatmapData');
-      await callable.call();
-      debugPrint('[HeatmapScreen] Silent live fetch complete.');
+      final liveData = await HeatmapService().fetchLiveHeatmapData(forceRefresh: false);
+      _updateLastSyncTime();
+      debugPrint('[HeatmapScreen] Silent live fetch complete for ${liveData.length} stocks.');
     } catch (e) {
       debugPrint('[HeatmapScreen] Failed to trigger silent live fetch: $e');
     } finally {
@@ -91,14 +106,51 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
     return Scaffold(
       backgroundColor: AppTheme.bgColor,
       appBar: AppBar(
-        title: const Text(
-          'NIFTY 50 HEATMAP',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1.5,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'NIFTY 50 HEATMAP',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF00FF88),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF00FF88).withValues(alpha: 0.8),
+                        blurRadius: 4,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 5),
+                Text(
+                  _lastSyncTime.isNotEmpty
+                      ? 'LIVE SYNC • $_lastSyncTime'
+                      : 'LIVE MARKET SYNC • 50 STOCKS',
+                  style: const TextStyle(
+                    color: Color(0xFF00FF88),
+                    fontSize: 8.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
@@ -157,8 +209,13 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
         'symbol': symbol,
         'name': rawData['name'] ?? NiftyStocks.stocks[symbol] ?? symbol,
         'price': (rawData['price'] as num?)?.toDouble() ?? 0.0,
+        'change': (rawData['change'] as num?)?.toDouble() ?? (rawData['change_abs'] as num?)?.toDouble() ?? 0.0,
         'changePercent': (rawData['changePercent'] as num?)?.toDouble() ?? 0.0,
-        'volume': rawData['volume'] as int? ?? 0,
+        'open': (rawData['open'] as num?)?.toDouble() ?? 0.0,
+        'high': (rawData['high'] as num?)?.toDouble() ?? 0.0,
+        'low': (rawData['low'] as num?)?.toDouble() ?? 0.0,
+        'volume': (rawData['volume'] as num?)?.toInt() ?? 0,
+        'lastUpdate': rawData['lastUpdate'] ?? 0,
       });
     });
 
@@ -169,7 +226,11 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
           'symbol': symbol,
           'name': name,
           'price': 0.0,
+          'change': 0.0,
           'changePercent': 0.0,
+          'open': 0.0,
+          'high': 0.0,
+          'low': 0.0,
           'volume': 0,
         });
       });
@@ -346,6 +407,7 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
     final String symbol = stock['symbol'];
     final String name = stock['name'];
     final double price = stock['price'];
+    final double change = (stock['change'] as num?)?.toDouble() ?? 0.0;
     final double changePercent = stock['changePercent'];
 
     final bool isPositive = changePercent >= 0.0;
@@ -453,14 +515,20 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
                       Icon(
                         isPositive ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
                         color: Colors.white,
-                        size: 14,
+                        size: 13,
                       ),
-                      Text(
-                        '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: Text(
+                          change != 0.0
+                              ? '${isPositive ? '+' : ''}${change.toStringAsFixed(1)} (${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%)'
+                              : '${isPositive ? '+' : ''}${changePercent.toStringAsFixed(2)}%',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.w900,
+                            fontFamily: 'monospace',
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ),
                     ],

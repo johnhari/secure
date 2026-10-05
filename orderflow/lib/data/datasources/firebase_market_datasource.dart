@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_database/firebase_database.dart';
 import '../models/candle_model.dart';
 import '../../core/utils/map_utils.dart';
 
 class FirebaseMarketDataSource {
-  final FirebaseDatabase _database;
+  final FirebaseDatabase? _database;
 
   FirebaseMarketDataSource({FirebaseDatabase? database})
       : _database = database ?? FirebaseDatabase.instance;
@@ -11,8 +12,9 @@ class FirebaseMarketDataSource {
   /// Fetch historical candles from Firebase RTDB (market_data/{symbol}/candles).
   /// Backward-compatible: handles old records that may lack timeStart/timeEnd fields.
   Future<List<CandleModel>> fetchHistoricalCandles(String symbol) async {
+    if (_database == null) return [];
     try {
-      final snapshot = await _database.ref('market_data/$symbol/candles').get();
+      final snapshot = await _database!.ref('market_data/$symbol/candles').get();
 
       print('FirebaseMarketDataSource [$symbol]: exists=${snapshot.exists}, count=${snapshot.children.length}');
 
@@ -54,7 +56,9 @@ class FirebaseMarketDataSource {
 
   /// Listen to live candle updates from RTDB.
   Stream<CandleModel> getCandleStream(String symbol) {
-    return _database
+    final db = _database;
+    if (db == null) return const Stream.empty();
+    return db
         .ref('market_data/$symbol/candles')
         .onChildChanged
         .map((event) {
@@ -71,8 +75,10 @@ class FirebaseMarketDataSource {
 
   /// Wipe all historical candles for a symbol.
   Future<void> wipeHistoricalCandles(String symbol) async {
+    final db = _database;
+    if (db == null) return;
     try {
-      await _database.ref('market_data/$symbol/candles').remove();
+      await db.ref('market_data/$symbol/candles').remove();
       print('FirebaseMarketDataSource [$symbol]: candles wiped');
     } catch (e) {
       print('FirebaseMarketDataSource [$symbol]: Error wiping — $e');
@@ -82,7 +88,9 @@ class FirebaseMarketDataSource {
 
   /// Stream the Nifty 50 heatmap data from RTDB.
   Stream<Map<String, Map<String, dynamic>>> getHeatmapStream() {
-    return _database.ref('market_data/nifty50_heatmap').onValue.map((event) {
+    final db = _database;
+    if (db == null) return Stream.value(<String, Map<String, dynamic>>{});
+    return db.ref('market_data/nifty50_heatmap').onValue.map((event) {
       if (!event.snapshot.exists || event.snapshot.value == null) {
         return <String, Map<String, dynamic>>{};
       }
@@ -106,7 +114,9 @@ class FirebaseMarketDataSource {
 
   /// Stream the latest AI trade signal for an instrument from RTDB.
   Stream<Map<String, dynamic>?> getSignalStream(String instrument) {
-    return _database.ref('trade_signals/$instrument/latest').onValue.map((event) {
+    final db = _database;
+    if (db == null) return Stream.value(null);
+    return db.ref('trade_signals/$instrument/latest').onValue.map((event) {
       if (!event.snapshot.exists || event.snapshot.value == null) {
         return null;
       }
@@ -119,10 +129,29 @@ class FirebaseMarketDataSource {
     });
   }
 
+  /// Stream the active stock signals summary (count & active volatile stocks) from RTDB.
+  Stream<Map<String, dynamic>?> getActiveSignalsSummaryStream() {
+    final db = _database;
+    if (db == null) return Stream.value(null);
+    return db.ref('trade_signals/active_summary').onValue.map((event) {
+      if (!event.snapshot.exists || event.snapshot.value == null) {
+        return null;
+      }
+      try {
+        return MapUtils.extractMap(event.snapshot.value);
+      } catch (e) {
+        print('FirebaseMarketDataSource [Active Signals Summary Error]: $e');
+        return null;
+      }
+    });
+  }
+
   /// Fetch signal history for an instrument from RTDB.
   Future<List<Map<String, dynamic>>> getSignalHistory(String instrument) async {
+    final db = _database;
+    if (db == null) return [];
     try {
-      final snapshot = await _database
+      final snapshot = await db
           .ref('trade_signals/$instrument/history')
           .orderByKey()
           .limitToLast(20)

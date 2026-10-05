@@ -39,6 +39,13 @@ exports.forgotPassword = functions.https.onCall(async (data, context) => {
 });
 
 /**
+ * Send branded HTML email verification
+ */
+exports.sendVerificationEmail = functions.https.onCall(async (data, context) => {
+    return await auth.sendVerificationEmail(data);
+});
+
+/**
  * Reset password with OTP
  */
 exports.resetPassword = functions.https.onCall(async (data, context) => {
@@ -137,6 +144,30 @@ exports.getMarketData = functions.runWith({ memory: '512MB' }).https.onCall(asyn
 });
 
 /**
+ * Public CORS-enabled HTTP endpoint for live market candles (5-min intervals).
+ * Direct access for Flutter Web/Mobile without CORS restrictions.
+ */
+exports.apiMarketData = functions.runWith({ memory: '512MB' }).https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+
+    try {
+        const symbol = (req.query && req.query.symbol) ? req.query.symbol.toString().toUpperCase() : 'NIFTY50';
+        const result = await market.fetchAndReturnCandles(symbol);
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('[apiMarketData] Error:', error.message);
+        res.status(500).json({ error: error.message, candles: [] });
+    }
+});
+
+/**
  * On-demand market heatmap fetch (HTTPS callable).
  * Returns the aggregated Nifty 50 heatmap data.
  */
@@ -144,34 +175,94 @@ exports.getHeatmapData = functions.runWith({ memory: '512MB' }).https.onCall(asy
     return await market.fetchHeatmapData();
 });
 
+/**
+ * On-demand Pre-Market Bias fetch (HTTPS callable).
+ * Returns real live GIFT Nifty, Expected Open, FII/DII, and Global Futures.
+ */
+exports.getPreMarketBias = functions.runWith({ memory: '512MB' }).https.onCall(async (data, context) => {
+    return await market.fetchPreMarketBiasData();
+});
+
+/**
+ * Public CORS-enabled HTTP endpoint for Pre-Market Bias Data.
+ */
+exports.apiPreMarketBias = functions.runWith({ memory: '512MB' }).https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+
+    try {
+        const result = await market.fetchPreMarketBiasData();
+        res.status(200).json(result);
+    } catch (error) {
+        console.error('[apiPreMarketBias] Error:', error.message);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // ========================================
 // AI TRADE SIGNAL FUNCTIONS
 // ========================================
 
 /**
- * Scheduled function to generate AI trade signals.
+ * Scheduled function to generate AI trade signals & auto-inject into volatile stocks.
  * Runs every 5 minutes during market hours.
  */
-exports.generateTradeSignals = functions.runWith({ memory: '512MB', timeoutSeconds: 120 }).pubsub
+exports.generateTradeSignals = functions.runWith({ memory: '512MB', timeoutSeconds: 180 }).pubsub
     .schedule('every 5 minutes')
     .timeZone('Asia/Kolkata')
     .onRun(async (context) => {
         try {
-            const results = await signals.generateAllSignals();
+            // 1. Generate index signals (NIFTY50, BANKNIFTY, FINNIFTY, MIDCAPNIFTY)
+            await signals.generateAllSignals();
 
-            // Send FCM notification for high-confidence signals
-            for (const [instrument, signal] of Object.entries(results)) {
-                if (signal.confidence >= 75 && signal.signal !== 'HOLD') {
-                    await notifications.broadcastTradeSignal(signal);
-                }
-            }
+            // 2. Autonomous stock scan, volatility filter, high-win-ratio selection & orderflow injection
+            const autoInjectResult = await signals.autoAnalyzeAndInjectStocks();
+            console.log(`[Signals] Auto-injection completed. Active volatile stocks count: ${autoInjectResult ? autoInjectResult.count : 0}`);
 
+            // Note: Per user request, intrusive push notifications are replaced by the in-app Bell icon badge (2, 3, 4)
             return null;
         } catch (err) {
             console.error('[Signals] Scheduled generation error:', err);
             return null;
         }
     });
+
+/**
+ * On-demand autonomous stock scan & auto-injection (HTTPS callable).
+ * Evaluates all 50 Nifty stocks, filters high volatility, evaluates win-ratio strategies,
+ * and auto-injects orderflow.
+ */
+exports.scanAndInjectStocks = functions.runWith({ memory: '512MB', timeoutSeconds: 120 }).https.onCall(async (data, context) => {
+    return await signals.autoAnalyzeAndInjectStocks();
+});
+
+/**
+ * Public CORS HTTP endpoint for triggering or testing autonomous stock auto-injection.
+ */
+exports.apiScanAndInjectStocks = functions.runWith({ memory: '512MB', timeoutSeconds: 120 }).https.onRequest(async (req, res) => {
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+
+    try {
+        const result = await signals.autoAnalyzeAndInjectStocks();
+        res.status(200).json({ success: true, ...result });
+    } catch (err) {
+        console.error('[apiScanAndInjectStocks] Error:', err.message);
+        res.status(500).json({ success: false, error: err.message });
+    }
+});
 
 /**
  * On-demand trade signal generation (HTTPS callable).

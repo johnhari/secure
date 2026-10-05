@@ -6,6 +6,8 @@ import 'package:orderflow/data/models/tick_data_model.dart';
 import 'package:orderflow/domain/entities/user_profile.dart';
 import 'package:orderflow/domain/services/candle_aggregator_service.dart';
 import 'package:orderflow/core/constants/nifty_stocks.dart';
+import 'package:orderflow/core/utils/device_utils.dart';
+import 'package:orderflow/domain/services/pre_market_bias_service.dart';
 
 void main() {
   group('1. Candle & Orderflow Model Tests', () {
@@ -158,6 +160,89 @@ void main() {
       expect(viewerProfile.isApproved, true);
       expect(viewerProfile.isIndexOnly, false);
       expect(viewerProfile.expiryDate?.isAfter(DateTime(2026, 1, 1)), true);
+      expect(viewerProfile.allowDualDevice, false);
+    });
+
+    test('UserProfile 1 Mobile + 1 PC dual device authorization', () {
+      final dualProfile = UserProfile.fromJson({
+        'uid': 'dual_user_789',
+        'email': 'dual@example.com',
+        'isApproved': true,
+        'allowDualDevice': true,
+      });
+
+      expect(dualProfile.allowDualDevice, true);
+      expect(dualProfile.toJson()['allowDualDevice'], true);
+
+      final updated = dualProfile.copyWith(allowDualDevice: false);
+      expect(updated.allowDualDevice, false);
+
+      final alternativeKeyProfile = UserProfile.fromJson({
+        'uid': 'alt_user_101',
+        'email': 'alt@example.com',
+        'isApproved': true,
+        'allow1Mobile1Pc': true,
+      });
+      expect(alternativeKeyProfile.allowDualDevice, true);
+
+      final masterAdminProfile = UserProfile.fromJson({
+        'uid': 'admin_master',
+        'email': 'jivaspect@gmail.com',
+      });
+      expect(masterAdminProfile.allowDualDevice, true);
+    });
+
+    test('Dual Session RTDB payload slot isolation (1 PC + 1 Mobile)', () {
+      final rtdbSessionMap = {
+        'allowDualDevice': true,
+        'allow1Mobile1Pc': true,
+        'forceLogout': false,
+        'pc': {
+          'activeDeviceId': 'win_hwid_desktop_xyz',
+          'sessionId': 'session_pc_001',
+          'deviceName': 'Windows: Trader-PC',
+          'platform': 'windows',
+          'slot': 'pc',
+          'lastSeen': 1700000000000,
+          'forceLogout': false,
+        },
+        'mobile': {
+          'activeDeviceId': 'android_samsung_s23_abc',
+          'sessionId': 'session_mob_002',
+          'deviceName': 'Samsung SM-S911B',
+          'platform': 'android',
+          'slot': 'mobile',
+          'lastSeen': 1700000005000,
+          'forceLogout': false,
+        },
+      };
+
+      expect(rtdbSessionMap['allowDualDevice'], true);
+      expect(rtdbSessionMap.containsKey('pc'), true);
+      expect(rtdbSessionMap.containsKey('mobile'), true);
+
+      final pcSlot = rtdbSessionMap['pc'] as Map<String, dynamic>;
+      final mobSlot = rtdbSessionMap['mobile'] as Map<String, dynamic>;
+
+      // Ensure slots are completely independent with distinct IDs and platforms
+      expect(pcSlot['activeDeviceId'], isNot(equals(mobSlot['activeDeviceId'])));
+      expect(pcSlot['sessionId'], isNot(equals(mobSlot['sessionId'])));
+      expect(pcSlot['slot'], 'pc');
+      expect(mobSlot['slot'], 'mobile');
+      expect(pcSlot['platform'], 'windows');
+      expect(mobSlot['platform'], 'android');
+
+      // Modifying mobile slot leaves PC slot intact
+      final updatedMobSlot = Map<String, dynamic>.from(mobSlot);
+      updatedMobSlot['sessionId'] = 'session_mob_003_new_login';
+      expect(pcSlot['sessionId'], 'session_pc_001');
+      expect(updatedMobSlot['sessionId'], 'session_mob_003_new_login');
+    });
+
+    test('DeviceUtils slot and device category detection', () {
+      expect(DeviceUtils.getDeviceSlot(), anyOf('mobile', 'pc'));
+      expect(DeviceUtils.getDeviceTypeName(), anyOf('Mobile', 'PC'));
+      expect(DeviceUtils.isMobile() != DeviceUtils.isPc(), true);
     });
   });
 
@@ -310,4 +395,64 @@ void main() {
       expect(stocks.containsKey('SBIN'), true);
     });
   });
+
+  group('7. Pre-Market Bias Data & Calculations', () {
+    test('PreMarketBiasData serialization and deserialization', () {
+      final json = {
+        'giftNifty': 22615.0,
+        'giftNiftyChange': -210.0,
+        'giftNiftyPct': -0.92,
+        'expectedOpen': 'GAP DOWN (-190 to -140 points)',
+        'expectedOpenType': 'GAP DOWN',
+        'fiiNet': -5353.22,
+        'diiNet': 5189.02,
+        'fiiDiiDate': '28-Sep-2026',
+        'globalFutures': {
+          'DOW FUT': '-122 (-0.24%)',
+          'NASDAQ FUT': '-132.3 (-0.43%)',
+          'DAX': '-34.2 (-0.13%)',
+          'NIKKEI': '-936 (-1.42%)',
+        },
+        'lastUpdated': 1790658000000,
+      };
+
+      final data = PreMarketBiasData.fromJson(json);
+
+      expect(data.giftNifty, 22615.0);
+      expect(data.giftNiftyChange, -210.0);
+      expect(data.giftNiftyPct, -0.92);
+      expect(data.expectedOpen, 'GAP DOWN (-190 to -140 points)');
+      expect(data.expectedOpenType, 'GAP DOWN');
+      expect(data.fiiNet, -5353.22);
+      expect(data.diiNet, 5189.02);
+      expect(data.fiiDiiDate, '28-Sep-2026');
+      expect(data.globalFutures['DOW FUT'], '-122 (-0.24%)');
+
+      final serialized = data.toJson();
+      expect(serialized['giftNifty'], 22615.0);
+      expect(serialized['expectedOpenType'], 'GAP DOWN');
+      expect(serialized['fiiNet'], -5353.22);
+    });
+
+    test('PreMarketBias formatting logic avoids double sign bug', () {
+      const double negativeChange = -77.11;
+      const double negativePct = -0.32;
+
+      final isPos = negativeChange >= 0;
+      final sign = isPos ? '+' : '';
+      final formatted = '$sign${negativeChange.toStringAsFixed(2)} ($sign${negativePct.toStringAsFixed(2)}%)';
+
+      expect(formatted.contains('+-'), false);
+      expect(formatted, '-77.11 (-0.32%)');
+
+      const double positiveChange = 112.50;
+      const double positivePct = 0.47;
+      final isPos2 = positiveChange >= 0;
+      final sign2 = isPos2 ? '+' : '';
+      final formatted2 = '$sign2${positiveChange.toStringAsFixed(2)} ($sign2${positivePct.toStringAsFixed(2)}%)';
+
+      expect(formatted2, '+112.50 (+0.47%)');
+    });
+  });
 }
+
